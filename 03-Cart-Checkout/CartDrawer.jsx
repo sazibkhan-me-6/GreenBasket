@@ -24,7 +24,7 @@ export default function CartDrawer({
       setPromoMessage('20% discount applied! 🌱');
     } else {
       setDiscountPercent(0);
-      setPromoMessage('Invalid promo code. Try "GREEN20"');
+      setPromoMessage('Invalid code. Use "GREEN20" for 20% off.');
     }
   };
 
@@ -40,7 +40,7 @@ export default function CartDrawer({
       <aside className="cart-drawer" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="drawer-heading">
-          <h2>Your Basket <span>({cartCount} items)</span></h2>
+          <h2>Your Basket <span>({cartCount})</span></h2>
           <button className="icon-btn" onClick={onClose} aria-label="Close basket">
             <X size={22}/>
           </button>
@@ -49,10 +49,10 @@ export default function CartDrawer({
         {/* Content */}
         {cartCount === 0 ? (
           <div className="cart-empty">
-            <ShoppingCart size={44}/>
+            <ShoppingCart size={40}/>
             <h3>Your basket is empty</h3>
-            <p>Discover fresh, organic farm produce and start adding to your basket.</p>
-            <button className="btn btn-primary" onClick={onClose} style={{ marginTop: '12px' }}>
+            <p>Discover something fresh today.</p>
+            <button className="btn btn-primary" onClick={onClose}>
               Start Shopping <ArrowRight size={16}/>
             </button>
           </div>
@@ -67,7 +67,7 @@ export default function CartDrawer({
                     <img src={p.image} alt={p.name}/>
                     <div className="cart-item-info">
                       <b>{p.name}</b>
-                      <small>${p.price.toFixed(2)} / {p.unit.split(' / ')[0]}</small>
+                      <small>${Number(p.price).toFixed(2)} each</small>
                       <div className="qty-control">
                         <button onClick={() => onChangeQty(p.id, -1)} aria-label="Decrease quantity">
                           <Minus size={13}/>
@@ -78,33 +78,33 @@ export default function CartDrawer({
                         </button>
                       </div>
                     </div>
-                    <b className="item-total">${(p.price * qty).toFixed(2)}</b>
+                    <b className="item-total">${(Number(p.price) * qty).toFixed(2)}</b>
                   </div>
                 );
               })}
             </div>
 
-            {/* Promo Code Box */}
-            <form onSubmit={handleApplyPromo} style={{ display: 'flex', gap: '6px', margin: '10px 0 5px' }}>
+            {/* Promo Code Input */}
+            <form onSubmit={handleApplyPromo} style={{ display: 'flex', gap: '8px', padding: '10px 0 6px', borderTop: '1px solid #e2ebd8' }}>
               <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
-                <Tag size={13} style={{ position: 'absolute', left: '10px', color: '#6e8065' }}/>
+                <Tag size={13} style={{ position: 'absolute', left: '10px', color: '#687b5f' }}/>
                 <input 
                   type="text" 
                   placeholder="Promo code (GREEN20)" 
                   value={promoCode}
                   onChange={e => setPromoCode(e.target.value)}
-                  style={{ width: '100%', padding: '7px 8px 7px 30px', fontSize: '11px', borderRadius: '8px', border: '1px solid #d4decb', background: '#fff' }}
+                  style={{ width: '100%', padding: '8px 10px 8px 30px', fontSize: '12px', borderRadius: '8px', border: '1px solid #c9d8bd', background: '#ffffff', color: '#1a3311', outline: 'none' }}
                 />
               </div>
               <button 
                 type="submit" 
-                style={{ padding: '7px 12px', fontSize: '11px', fontWeight: 600, borderRadius: '8px', border: 'none', background: '#396317', color: '#fff', cursor: 'pointer' }}
+                style={{ padding: '8px 14px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', border: 'none', background: '#305915', color: '#f3fbe9', cursor: 'pointer' }}
               >
                 Apply
               </button>
             </form>
             {promoMessage && (
-              <small style={{ color: discountPercent > 0 ? '#34720e' : '#a82a2a', fontSize: '10px', marginBottom: '8px', display: 'block' }}>
+              <small style={{ color: discountPercent > 0 ? '#306911' : '#a12b2b', fontSize: '11px', display: 'block', marginBottom: '8px', fontWeight: 600 }}>
                 {promoMessage}
               </small>
             )}
@@ -116,14 +116,14 @@ export default function CartDrawer({
                 <b>${cartTotal.toFixed(2)}</b>
               </div>
               {discountPercent > 0 && (
-                <div style={{ color: '#2f6c0d' }}>
-                  <span>Discount (20%)</span>
+                <div style={{ color: '#2b640e' }}>
+                  <span>Promo Discount (20%)</span>
                   <b>-${discountAmount.toFixed(2)}</b>
                 </div>
               )}
               <div>
                 <span>Delivery</span>
-                <b>{deliveryFee === 0 ? <span style={{ color: '#387311' }}>FREE</span> : `$${deliveryFee.toFixed(2)}`}</b>
+                <b>{deliveryFee === 0 ? 'FREE' : `$${deliveryFee.toFixed(2)}`}</b>
               </div>
               <div className="grand-total">
                 <span>Total</span>
@@ -140,7 +140,7 @@ export default function CartDrawer({
                 Proceed to Checkout <ArrowRight size={17}/>
               </button>
               <small className="checkout-note">
-                <ShieldCheck size={14}/> 100% Secure Checkout Guaranteed
+                <ShieldCheck size={14}/> Secure checkout
               </small>
             </div>
           </>

@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   Leaf, Truck, Headphones, Search, UserRound, ShoppingCart, ArrowRight,
   ShieldCheck, Sprout, Heart, Menu, X, Star, CheckCircle2, Mail, Instagram,
-  Facebook, Youtube, Plus, Minus, Settings, LogOut, Package
+  Facebook, Youtube, Plus, Minus
 } from 'lucide-react';
 import './styles.css';
 
@@ -85,7 +85,7 @@ function App() {
   const handleLoginSuccess = (userEmail, password, role) => {
     const user = api.login(userEmail, password, role);
     setCurrentUser(user);
-    showToast(`Signed in as ${user.name} (${user.role})`);
+    showToast(`Signed in as ${user.name}`);
   };
 
   const handleLogout = () => {
@@ -109,8 +109,8 @@ function App() {
   const handleOrderCompleted = (orderData) => {
     const newOrder = api.createOrder(orderData);
     setOrdersList(api.getOrders());
-    setCart({}); // clear cart
-    showToast(`Order ${newOrder.id} placed!`);
+    setCart({});
+    showToast(`Order #${newOrder.id} confirmed!`);
     return newOrder;
   };
 
@@ -120,8 +120,8 @@ function App() {
       <div className="top-strip">
         <div className="top-inner">
           <span><Truck size={14}/> FREE DELIVERY on orders over $49</span>
-          <span><Sprout size={14}/> 100% Certified Organic & Farm Fresh</span>
-          <span><Headphones size={14}/> Customer Support 24/7</span>
+          <span><Sprout size={14}/> Eat Fresh, Live Healthy</span>
+          <span><Headphones size={14}/> Support 24/7</span>
         </div>
       </div>
 
@@ -154,61 +154,33 @@ function App() {
         </nav>
 
         <div className="header-actions">
-          {/* Admin Dashboard shortcut button */}
-          <button 
-            className="icon-btn" 
-            aria-label="Admin Panel" 
-            onClick={() => setAdminOpen(true)}
-            title="Open Admin Panel"
-            style={{ position: 'relative' }}
-          >
-            <Settings size={21}/>
-            <span style={{ position: 'absolute', top: '-4px', right: '-4px', width: '8px', height: '8px', borderRadius: '50%', background: '#bdf142' }}></span>
-          </button>
-
           {/* Search Trigger */}
           <button className="icon-btn" aria-label="Search" onClick={() => setSearchOpen(!searchOpen)}>
             <Search/>
           </button>
 
           {/* User Account / Profile */}
-          {currentUser ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <button 
-                onClick={() => setAuthOpen(true)}
-                style={{ 
-                  background: '#224d14', 
-                  color: '#eff9d9', 
-                  border: '1px solid #4a7d25', 
-                  borderRadius: '20px', 
-                  padding: '5px 12px', 
-                  fontSize: '11px', 
-                  fontWeight: 600, 
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                <UserRound size={14}/> {currentUser.name} 
-                <span style={{ fontSize: '9px', background: '#98cf31', color: '#162e0c', padding: '1px 5px', borderRadius: '4px', textTransform: 'capitalize' }}>
-                  {currentUser.role}
-                </span>
-              </button>
-              <button 
-                onClick={handleLogout} 
-                className="icon-btn" 
-                title="Log out"
-                aria-label="Log out"
-              >
-                <LogOut size={16}/>
-              </button>
-            </div>
-          ) : (
-            <button className="icon-btn account-btn" aria-label="Sign in" onClick={() => setAuthOpen(true)} title="Sign In / Register">
-              <UserRound/>
-            </button>
-          )}
+          <button 
+            className="icon-btn account-btn" 
+            aria-label="Account" 
+            onClick={() => setAuthOpen(true)}
+            title={currentUser ? `${currentUser.name} (${currentUser.role})` : "Account"}
+            style={{ position: 'relative' }}
+          >
+            <UserRound/>
+            {currentUser && (
+              <span style={{ 
+                position: 'absolute', 
+                top: '2px', 
+                right: '2px', 
+                width: '7px', 
+                height: '7px', 
+                borderRadius: '50%', 
+                background: 'var(--lime)',
+                boxShadow: '0 0 6px var(--lime)'
+              }}></span>
+            )}
+          </button>
 
           {/* Cart Icon with badge */}
           <button className="icon-btn cart-trigger" aria-label="Open basket" onClick={() => setCartOpen(true)}>
@@ -223,7 +195,7 @@ function App() {
             <Search size={18}/>
             <input 
               autoFocus 
-              placeholder="Search farm fresh produce..." 
+              placeholder="Search fresh vegetables, fruits..." 
               value={search} 
               onChange={e => {
                 setSearch(e.target.value); 
@@ -242,23 +214,14 @@ function App() {
         {/* Hero Section */}
         <section className="hero section-wrap" id="home">
           <div className="hero-copy">
-            <div className="eyebrow"><span className="eyebrow-dot"></span> GOOD FOOD. GOOD MOOD.</div>
+            <div className="eyebrow"><span className="eyebrow-dot"></span> 100% ORGANIC & FRESH</div>
             <h1>Fresh Food.<br/>Healthy Life.<br/><em>Happy You.</em></h1>
-            <p>100% organic fruits, vegetables & greens<br className="desktop-break"/> delivered directly from farm to your door.</p>
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              <a className="btn btn-primary" href="#products">Shop Now <ArrowRight size={18}/></a>
-              <button 
-                className="btn" 
-                onClick={() => setAdminOpen(true)}
-                style={{ background: '#1c4212', color: '#c5e85f', border: '1px solid #4a7726', fontSize: '13px' }}
-              >
-                <Settings size={15}/> Admin Dashboard
-              </button>
-            </div>
+            <p>Organic fruits, vegetables & greens<br className="desktop-break"/> delivered directly from farm to your door within 24h.</p>
+            <a className="btn btn-primary" href="#products">Shop Now <ArrowRight size={18}/></a>
             <div className="hero-perks">
-              <div><span className="perk-icon"><Leaf/></span><span><b>100% Organic</b><small>Pure & Natural</small></span></div>
-              <div><span className="perk-icon"><Truck/></span><span><b>Fast Delivery</b><small>On Time, Every Time</small></span></div>
-              <div><span className="perk-icon"><ShieldCheck/></span><span><b>Secure Payment</b><small>Safe & Protected</small></span></div>
+              <div><span className="perk-icon"><Leaf/></span><span><b>100% Organic</b><small>Certified produce</small></span></div>
+              <div><span className="perk-icon"><Truck/></span><span><b>Fast Delivery</b><small>Same day free</small></span></div>
+              <div><span className="perk-icon"><ShieldCheck/></span><span><b>Secure Checkout</b><small>Safe payments</small></span></div>
             </div>
           </div>
           <div className="hero-art">
@@ -400,7 +363,7 @@ function App() {
               ))}
             </div>
           ) : (
-            <div className="empty-state">No products found matching "{search}". Try searching for something else!</div>
+            <div className="empty-state">No products found. Try another search.</div>
           )}
         </section>
 
@@ -409,7 +372,7 @@ function App() {
           <div className="newsletter-icon"><Mail/></div>
           <div className="newsletter-copy">
             <h3>Stay Healthy, Stay Updated!</h3>
-            <p>Subscribe to receive seasonal harvesting deals, discount promo codes & fresh updates.</p>
+            <p>Subscribe to get best offers, health tips &<br/> fresh updates in your inbox.</p>
           </div>
           <form 
             className="subscribe-form" 
@@ -427,7 +390,7 @@ function App() {
             <input 
               type="email" 
               required 
-              placeholder="Enter your email address" 
+              placeholder="Enter your email" 
               value={email} 
               onChange={e => setEmail(e.target.value)}
             />
@@ -444,7 +407,7 @@ function App() {
             <span className="brand-mark"><ShoppingCart size={27}/><Leaf size={14}/></span>
             <span><b>Green<span>Basket</span></b><small>Fresh from Nature</small></span>
           </a>
-          <p>Your trusted doorstep source for 100% farm-fresh, organic and healthy produce. Dedicated to health and sustainable agriculture.</p>
+          <p>Your trusted source for fresh, organic and healthy food. We care for you and the planet.</p>
           <div className="socials">
             <a href="https://facebook.com" aria-label="Facebook"><Facebook/></a>
             <a href="https://instagram.com" aria-label="Instagram"><Instagram/></a>
@@ -453,49 +416,53 @@ function App() {
         </div>
         <div className="footer-col">
           <h4>Quick Links</h4>
-          <a href="#products">Shop All</a>
-          <a href="#categories">Browse Categories</a>
-          <a href="#deals">Special Deals</a>
-          <a href="#about">About Our Farm</a>
-          <a href="#contact">Contact Support</a>
+          <a href="#products">Shop</a>
+          <a href="#categories">Categories</a>
+          <a href="#deals">Deals</a>
+          <a href="#about">About Us</a>
+          <a href="#contact">Contact</a>
         </div>
         <div className="footer-col">
           <h4>Customer Service</h4>
-          <a href="#" onClick={e => { e.preventDefault(); setAuthOpen(true); }}>My Account</a>
-          <a href="#" onClick={e => { e.preventDefault(); setAdminOpen(true); }}>Admin Panel</a>
-          <a href="#" onClick={e => { e.preventDefault(); setCartOpen(true); }}>Basket & Orders</a>
-          <a href="#about">Shipping Policy</a>
-          <a href="#about">FAQs</a>
+          <a href="#account" onClick={(e) => { e.preventDefault(); setAuthOpen(true); }}>
+            My Account {currentUser ? `(${currentUser.name})` : ''}
+          </a>
+          <a href="#admin" onClick={(e) => { e.preventDefault(); setAdminOpen(true); }}>
+            Admin Dashboard
+          </a>
+          <a href="#contact">Track Order</a>
+          <a href="#contact">Shipping & Delivery</a>
+          <a href="#contact">Returns & Refunds</a>
+          <a href="#contact">FAQs</a>
         </div>
         <div className="footer-col">
           <h4>Information</h4>
-          <a href="#about">Privacy Policy</a>
-          <a href="#about">Terms & Conditions</a>
-          <a href="#about">Return Policy</a>
-          <a href="#about">Organic Certification</a>
-          <a href="#about">Careers</a>
+          <a href="#contact">Privacy Policy</a>
+          <a href="#contact">Terms & Conditions</a>
+          <a href="#contact">Refund Policy</a>
+          <a href="#contact">Blog</a>
+          <a href="#contact">Careers</a>
         </div>
         <div className="footer-col payment-col">
-          <h4>Accepted Payments</h4>
+          <h4>Payment Methods</h4>
           <div className="payment-badges">
             <span>VISA</span>
+            <span>PayPal</span>
             <span>Mastercard</span>
-            <span>bKash</span>
-            <span>Nagad</span>
-            <span>COD</span>
+            <span>SSL SECURE</span>
           </div>
-          <p><ShieldCheck size={14}/> 256-bit SSL Encrypted Checkout</p>
+          <p><ShieldCheck size={14}/> Secure checkout</p>
         </div>
         <div className="copyright">
-          © 2026 GreenBasket. All rights reserved. 
-          <span>Made with <Heart size={12} fill="currentColor"/> for fresh living.</span>
+          © 2026 GreenBasket. All rights reserved. <span>Made with <Heart size={12} fill="currentColor"/> for fresh living.</span>
         </div>
       </footer>
 
-      {/* Toast Notice */}
+      {/* Toast Notification */}
       {notice && (
         <div className="toast">
-          <CheckCircle2 size={17}/> {notice}
+          <CheckCircle2 size={17}/>
+          {notice}
           <button onClick={() => setNotice('')} aria-label="Dismiss"><X size={15}/></button>
         </div>
       )}
@@ -527,6 +494,9 @@ function App() {
         isOpen={authOpen}
         onClose={() => setAuthOpen(false)}
         onLoginSuccess={handleLoginSuccess}
+        currentUser={currentUser}
+        onLogout={handleLogout}
+        onOpenAdmin={() => setAdminOpen(true)}
       />
 
       {/* Admin Panel Modal */}
