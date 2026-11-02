@@ -47,8 +47,15 @@ function App() {
     api.saveFavorites(favorites);
   }, [favorites]);
 
+  const getEffectivePrice = (p) => {
+    if (p.discountPrice && Number(p.discountPrice) < Number(p.price)) {
+      return Number(p.discountPrice);
+    }
+    return Number(p.price) || 0;
+  };
+
   const cartCount = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
-  const cartTotal = productsList.reduce((sum, p) => sum + (Number(p.price) || 0) * (cart[p.id] || 0), 0);
+  const cartTotal = productsList.reduce((sum, p) => sum + getEffectivePrice(p) * (cart[p.id] || 0), 0);
 
   const shownProducts = useMemo(() => {
     return productsList.filter(p =>
@@ -98,6 +105,12 @@ function App() {
     const added = api.addProduct(newProdData);
     setProductsList(api.getProducts());
     showToast(`Added "${added.name}" to catalog!`);
+  };
+
+  const handleUpdateProduct = (updatedProd) => {
+    api.updateProduct(updatedProd);
+    setProductsList(api.getProducts());
+    showToast(`Live pricing updated for "${updatedProd.name}"`);
   };
 
   const handleDeleteProduct = (id) => {
@@ -154,6 +167,30 @@ function App() {
         </nav>
 
         <div className="header-actions">
+          {/* Admin Control Panel Access Button */}
+          <button 
+            onClick={() => setAdminOpen(true)}
+            className="admin-badge-btn"
+            title="Open GreenBasket Admin Control Panel"
+            style={{
+              background: '#1a3e11',
+              color: '#c5ea57',
+              border: '1px solid #3c7022',
+              borderRadius: '20px',
+              padding: '6px 13px',
+              fontSize: '11px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              letterSpacing: '0.2px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+            }}
+          >
+            <ShieldCheck size={14}/> Admin Panel
+          </button>
+
           {/* Search Trigger */}
           <button className="icon-btn" aria-label="Search" onClick={() => setSearchOpen(!searchOpen)}>
             <Search/>
@@ -295,7 +332,7 @@ function App() {
           </div>
         </section>
 
-        {/* Products Grid Block */}
+        {/* Products Grid Block with Live Pricing & Discount Badges */}
         <section className="section-wrap section-block products-block" id="products">
           <div className="section-heading">
             <div>
@@ -325,42 +362,55 @@ function App() {
 
           {shownProducts.length ? (
             <div className="product-grid">
-              {shownProducts.map(p => (
-                <article className="product-card" key={p.id}>
-                  <div className="product-image">
-                    <img src={p.image} alt={p.name}/>
-                    <span className="product-tag">{p.tag || 'Organic'}</span>
-                    <button 
-                      className={'heart-btn ' + (favorites.includes(p.id) ? 'hearted' : '')} 
-                      aria-label="Toggle favorite" 
-                      onClick={() => toggleFavorite(p.id)}
-                    >
-                      <Heart size={17} fill={favorites.includes(p.id) ? 'currentColor' : 'none'}/>
-                    </button>
-                  </div>
-                  <div className="product-info">
-                    <div className="rating">
-                      <Star size={12} fill="currentColor"/> {p.rating || 4.9} 
-                      <span>({p.reviews || 24} reviews)</span>
-                    </div>
-                    <h3>{p.name}</h3>
-                    <small>{p.unit}</small>
-                    <div className="product-bottom">
-                      <div>
-                        <b>${Number(p.price).toFixed(2)}</b>
-                        <small> / {p.unit.split(' / ')[0]}</small>
-                      </div>
-                      <button className="add-btn" onClick={() => addToCart(p.id)}>
-                        {cart[p.id] ? (
-                          <><CheckCircle2 size={15}/> Added ({cart[p.id]})</>
-                        ) : (
-                          <><Plus size={16}/> Add to Cart</>
-                        )}
+              {shownProducts.map(p => {
+                const hasDiscount = p.discountPrice && Number(p.discountPrice) < Number(p.price);
+                const currentPrice = hasDiscount ? Number(p.discountPrice) : Number(p.price);
+                const originalPrice = Number(p.price);
+
+                return (
+                  <article className="product-card" key={p.id}>
+                    <div className="product-image">
+                      <img src={p.image} alt={p.name}/>
+                      <span className="product-tag">
+                        {hasDiscount ? `${Math.round((1 - currentPrice / originalPrice) * 100)}% OFF` : (p.tag || 'Organic')}
+                      </span>
+                      <button 
+                        className={'heart-btn ' + (favorites.includes(p.id) ? 'hearted' : '')} 
+                        aria-label="Toggle favorite" 
+                        onClick={() => toggleFavorite(p.id)}
+                      >
+                        <Heart size={17} fill={favorites.includes(p.id) ? 'currentColor' : 'none'}/>
                       </button>
                     </div>
-                  </div>
-                </article>
-              ))}
+                    <div className="product-info">
+                      <div className="rating">
+                        <Star size={12} fill="currentColor"/> {p.rating || 4.9} 
+                        <span>({p.reviews || 24} reviews)</span>
+                      </div>
+                      <h3>{p.name}</h3>
+                      <small>{p.unit}</small>
+                      <div className="product-bottom">
+                        <div>
+                          <b>${currentPrice.toFixed(2)}</b>
+                          {hasDiscount && (
+                            <del style={{ marginLeft: '5px', fontSize: '11px', color: '#8aa380', fontWeight: 500 }}>
+                              ${originalPrice.toFixed(2)}
+                            </del>
+                          )}
+                          <small> / {p.unit.split(' / ')[0]}</small>
+                        </div>
+                        <button className="add-btn" onClick={() => addToCart(p.id)}>
+                          {cart[p.id] ? (
+                            <><CheckCircle2 size={15}/> Added ({cart[p.id]})</>
+                          ) : (
+                            <><Plus size={16}/> Add to Cart</>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           ) : (
             <div className="empty-state">No products found. Try another search.</div>
@@ -428,7 +478,7 @@ function App() {
             My Account {currentUser ? `(${currentUser.name})` : ''}
           </a>
           <a href="#admin" onClick={(e) => { e.preventDefault(); setAdminOpen(true); }}>
-            Admin Dashboard
+            Admin Control Panel
           </a>
           <a href="#contact">Track Order</a>
           <a href="#contact">Shipping & Delivery</a>
@@ -506,6 +556,7 @@ function App() {
         products={productsList}
         orders={ordersList}
         onAddProduct={handleAddProduct}
+        onUpdateProduct={handleUpdateProduct}
         onDeleteProduct={handleDeleteProduct}
       />
     </div>

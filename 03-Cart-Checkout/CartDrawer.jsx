@@ -35,6 +35,13 @@ export default function CartDrawer({
 
   const cartProductList = products.filter(p => cart[p.id]);
 
+  const getEffectivePrice = (p) => {
+    if (p.discountPrice && Number(p.discountPrice) < Number(p.price)) {
+      return Number(p.discountPrice);
+    }
+    return Number(p.price) || 0;
+  };
+
   return (
     <div className="drawer-backdrop" onClick={onClose}>
       <aside className="cart-drawer" onClick={e => e.stopPropagation()}>
@@ -62,12 +69,22 @@ export default function CartDrawer({
             <div className="cart-items">
               {cartProductList.map(p => {
                 const qty = cart[p.id];
+                const effPrice = getEffectivePrice(p);
+                const hasDiscount = p.discountPrice && Number(p.discountPrice) < Number(p.price);
+
                 return (
                   <div className="cart-item" key={p.id}>
                     <img src={p.image} alt={p.name}/>
                     <div className="cart-item-info">
                       <b>{p.name}</b>
-                      <small>${Number(p.price).toFixed(2)} each</small>
+                      <div>
+                        <small>${effPrice.toFixed(2)} each</small>
+                        {hasDiscount && (
+                          <del style={{ fontSize: '10px', color: '#889e7e', marginLeft: '5px' }}>
+                            ${Number(p.price).toFixed(2)}
+                          </del>
+                        )}
+                      </div>
                       <div className="qty-control">
                         <button onClick={() => onChangeQty(p.id, -1)} aria-label="Decrease quantity">
                           <Minus size={13}/>
@@ -78,7 +95,7 @@ export default function CartDrawer({
                         </button>
                       </div>
                     </div>
-                    <b className="item-total">${(Number(p.price) * qty).toFixed(2)}</b>
+                    <b className="item-total">${(effPrice * qty).toFixed(2)}</b>
                   </div>
                 );
               })}

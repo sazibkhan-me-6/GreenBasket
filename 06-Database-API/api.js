@@ -49,10 +49,29 @@ export const api = {
       tag: productData.tag || 'Fresh harvest',
       ...productData,
       price: Number(productData.price) || 1.99,
+      discountPrice: productData.discountPrice ? Number(productData.discountPrice) : null,
     };
     const updated = [newProduct, ...products];
     setStore(STORAGE_KEYS.PRODUCTS, updated);
     return newProduct;
+  },
+
+  updateProduct: (updatedData) => {
+    const products = api.getProducts();
+    const updated = products.map(p => {
+      if (p.id === updatedData.id) {
+        return {
+          ...p,
+          ...updatedData,
+          price: Number(updatedData.price) || p.price,
+          discountPrice: updatedData.discountPrice ? Number(updatedData.discountPrice) : null,
+          stock: updatedData.stock !== undefined ? Number(updatedData.stock) : p.stock,
+        };
+      }
+      return p;
+    });
+    setStore(STORAGE_KEYS.PRODUCTS, updated);
+    return updated;
   },
 
   deleteProduct: (id) => {
