@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   Leaf, Truck, Headphones, Search, UserRound, ShoppingCart, ArrowRight,
   ShieldCheck, Sprout, Heart, Menu, X, Star, CheckCircle2, Mail, Instagram,
-  Facebook, Youtube, Plus, Minus
+  Facebook, Youtube, Plus, Minus, Settings
 } from 'lucide-react';
 import './styles.css';
 
@@ -107,7 +107,30 @@ function App() {
         <div className="top-inner">
           <span><Truck size={14}/> FREE DELIVERY on orders over $49</span>
           <span><Sprout size={14}/> Eat Fresh, Live Healthy</span>
-          <span><Headphones size={14}/> Support 24/7</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <a 
+              href="https://greenbasket-admin-panel.vercel.app/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              style={{
+                background: '#457319',
+                color: '#effbd2',
+                border: '1px solid #6e9d30',
+                borderRadius: '6px',
+                padding: '2px 9px',
+                fontSize: '11px',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                textDecoration: 'none'
+              }}
+              title="Open GreenBasket Admin Panel"
+            >
+              <Settings size={12}/> Admin Panel ↗
+            </a>
+            <span><Headphones size={14}/> Support 24/7</span>
+          </div>
         </div>
       </div>
 
@@ -140,6 +163,18 @@ function App() {
         </nav>
 
         <div className="header-actions">
+          {/* Admin Panel Direct Link */}
+          <a 
+            href="https://greenbasket-admin-panel.vercel.app/" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="icon-btn" 
+            aria-label="Admin Panel"
+            title="Open GreenBasket Admin Panel"
+          >
+            <Settings size={20}/>
+          </a>
+
           {/* Search Trigger */}
           <button className="icon-btn" aria-label="Search" onClick={() => setSearchOpen(!searchOpen)}>
             <Search/>
@@ -433,6 +468,14 @@ function App() {
           <h4>Customer Service</h4>
           <a href="#account" onClick={(e) => { e.preventDefault(); setAuthOpen(true); }}>
             My Account {currentUser ? `(${currentUser.name})` : ''}
+          </a>
+          <a 
+            href="https://greenbasket-admin-panel.vercel.app/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{ color: 'var(--lime)', fontWeight: 600 }}
+          >
+            Admin Panel ↗
           </a>
           <a href="#contact">Track Order</a>
           <a href="#contact">Shipping & Delivery</a>
