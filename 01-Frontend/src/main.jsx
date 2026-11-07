@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Leaf, Truck, Headphones, Search, UserRound, ShoppingCart, ArrowRight,
@@ -18,7 +18,7 @@ const photo = (id, w = 700) => `https://images.unsplash.com/${id}?auto=format&fi
 
 function App() {
   // Persistent state from api
-  const [productsList] = useState(() => api.getProducts());
+  const [productsList, setProductsList] = useState(() => api.getProducts());
   const [currentUser, setCurrentUser] = useState(() => api.getCurrentUser());
   const [cart, setCart] = useState(() => api.getCart());
   const [favorites, setFavorites] = useState(() => api.getFavorites());
@@ -35,6 +35,8 @@ function App() {
   const [subscribed, setSubscribed] = useState(false);
   const [notice, setNotice] = useState('');
 
+  const bridgeIframeRef = useRef(null);
+
   // Persist cart & favorites changes
   useEffect(() => {
     api.saveCart(cart);
@@ -43,6 +45,64 @@ function App() {
   useEffect(() => {
     api.saveFavorites(favorites);
   }, [favorites]);
+
+  // Real-time synchronization with GreenBasket Admin Panel (greenbasket-admin-panel.vercel.app)
+  useEffect(() => {
+    const normalizeCatalog = (list) => {
+      if (!Array.isArray(list) || list.length === 0) return null;
+      return list.map((p) => {
+        const priceNum = Number(p.price) || 0;
+        let discountNum = null;
+        if (p.discount !== undefined && p.discount !== null && p.discount !== '') {
+          const dVal = Number(p.discount);
+          if (dVal > 0 && dVal < priceNum) discountNum = dVal;
+        } else if (p.discountPrice && Number(p.discountPrice) < priceNum) {
+          discountNum = Number(p.discountPrice);
+        }
+        return {
+          id: p.id,
+          name: p.name || 'Organic Product',
+          category: p.category || 'Vegetables',
+          unit: p.unit || '1 pack',
+          price: priceNum,
+          discountPrice: discountNum,
+          tag: p.tag || 'Fresh harvest',
+          image: p.image || photo('photo-1540420773420-3366772f4999', 500),
+          stock: Number(p.stock) || 20,
+          rating: p.rating || 4.9,
+          reviews: p.reviews || 25
+        };
+      });
+    };
+
+    const handleMessage = (e) => {
+      if (!e.data || typeof e.data !== 'object') return;
+      if (e.data.type === 'GB_CATALOG_SYNC' || e.data.type === 'GB_PRODUCTS_UPDATED') {
+        const normalized = normalizeCatalog(e.data.products);
+        if (normalized) {
+          setProductsList(normalized);
+          api.saveProducts(normalized);
+        }
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    let ch;
+    try {
+      ch = new BroadcastChannel('gb_bridge_channel');
+      ch.onmessage = (e) => {
+        if (e.data && (e.data.type === 'GB_CATALOG_SYNC' || e.data.type === 'GB_PRODUCTS_UPDATED')) {
+          handleMessage(e);
+        }
+      };
+    } catch (err) {}
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      if (ch) ch.close();
+    };
+  }, []);
 
   // Hidden admin access: Ctrl+Shift+A, Alt+A, or URL hash #admin
   useEffect(() => {
@@ -122,6 +182,29 @@ function App() {
     const newOrder = api.createOrder(orderData);
     setCart({});
     showToast(`Order #${newOrder.id} confirmed!`);
+
+    // Forward new order to the dedicated Admin Panel (greenbasket-admin-panel.vercel.app)
+    try {
+      const orderPayload = {
+        type: 'GB_NEW_ORDER',
+        order: {
+          id: newOrder.id,
+          customer: orderData.customer?.name || 'Store Customer',
+          items: Array.isArray(orderData.items) ? orderData.items.map(it => `${it.name} (${it.qty})`).join(', ') : 'Fresh Grocery Pack',
+          total: Number(orderData.total) || 0,
+          status: 'Processing',
+          date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+        }
+      };
+
+      bridgeIframeRef.current?.contentWindow?.postMessage(orderPayload, '*');
+      const ch = new BroadcastChannel('gb_bridge_channel');
+      ch.postMessage(orderPayload);
+      ch.close();
+    } catch (e) {
+      console.warn('Bridge order notification failed', e);
+    }
+
     return newOrder;
   };
 
@@ -525,6 +608,20 @@ function App() {
         onLoginSuccess={handleLoginSuccess}
         currentUser={currentUser}
         onLogout={handleLogout}
+      />
+
+      {/* Headless Cross-Origin Sync Bridge to Admin Panel */}
+      <iframe
+        id="gb-sync-bridge"
+        ref={bridgeIframeRef}
+        src="https://greenbasket-admin-panel.vercel.app/?mode=bridge"
+        style={{ display: 'none', width: 0, height: 0, border: 0, opacity: 0, pointerEvents: 'none', position: 'absolute' }}
+        title="GreenBasket Sync Bridge"
+        onLoad={() => {
+          try {
+            bridgeIframeRef.current?.contentWindow?.postMessage({ type: 'GB_REQUEST_SYNC' }, '*');
+          } catch (e) {}
+        }}
       />
     </div>
   );
