@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   Leaf, Truck, Headphones, Search, UserRound, ShoppingCart, ArrowRight,
   ShieldCheck, Sprout, Heart, Menu, X, Star, CheckCircle2, Mail, Instagram,
-  Facebook, Youtube, Plus, Minus, Settings
+  Facebook, Youtube, Plus, Minus
 } from 'lucide-react';
 import './styles.css';
 
@@ -43,6 +43,31 @@ function App() {
   useEffect(() => {
     api.saveFavorites(favorites);
   }, [favorites]);
+
+  // Hidden admin access: Ctrl+Shift+A, Alt+A, or URL hash #admin
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) || (e.altKey && (e.key === 'A' || e.key === 'a'))) {
+        e.preventDefault();
+        window.open('https://greenbasket-admin-panel.vercel.app/', '_blank', 'noopener,noreferrer');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    const checkHash = () => {
+      if (window.location.hash.toLowerCase() === '#admin') {
+        window.history.replaceState(null, '', window.location.pathname);
+        window.open('https://greenbasket-admin-panel.vercel.app/', '_blank', 'noopener,noreferrer');
+      }
+    };
+    checkHash();
+    window.addEventListener('hashchange', checkHash);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('hashchange', checkHash);
+    };
+  }, []);
 
   const getProductPrice = (p) => (p && p.discountPrice && Number(p.discountPrice) > 0 && Number(p.discountPrice) < Number(p.price)) ? Number(p.discountPrice) : Number(p.price || 0);
 
@@ -107,30 +132,7 @@ function App() {
         <div className="top-inner">
           <span><Truck size={14}/> FREE DELIVERY on orders over $49</span>
           <span><Sprout size={14}/> Eat Fresh, Live Healthy</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <a 
-              href="https://greenbasket-admin-panel.vercel.app/" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              style={{
-                background: '#457319',
-                color: '#effbd2',
-                border: '1px solid #6e9d30',
-                borderRadius: '6px',
-                padding: '2px 9px',
-                fontSize: '11px',
-                fontWeight: 700,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                textDecoration: 'none'
-              }}
-              title="Open GreenBasket Admin Panel"
-            >
-              <Settings size={12}/> Admin Panel ↗
-            </a>
-            <span><Headphones size={14}/> Support 24/7</span>
-          </div>
+          <span><Headphones size={14}/> Support 24/7</span>
         </div>
       </div>
 
@@ -163,18 +165,6 @@ function App() {
         </nav>
 
         <div className="header-actions">
-          {/* Admin Panel Direct Link */}
-          <a 
-            href="https://greenbasket-admin-panel.vercel.app/" 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            className="icon-btn" 
-            aria-label="Admin Panel"
-            title="Open GreenBasket Admin Panel"
-          >
-            <Settings size={20}/>
-          </a>
-
           {/* Search Trigger */}
           <button className="icon-btn" aria-label="Search" onClick={() => setSearchOpen(!searchOpen)}>
             <Search/>
@@ -469,14 +459,6 @@ function App() {
           <a href="#account" onClick={(e) => { e.preventDefault(); setAuthOpen(true); }}>
             My Account {currentUser ? `(${currentUser.name})` : ''}
           </a>
-          <a 
-            href="https://greenbasket-admin-panel.vercel.app/" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            style={{ color: 'var(--lime)', fontWeight: 600 }}
-          >
-            Admin Panel ↗
-          </a>
           <a href="#contact">Track Order</a>
           <a href="#contact">Shipping & Delivery</a>
           <a href="#contact">Returns & Refunds</a>
@@ -501,7 +483,7 @@ function App() {
           <p><ShieldCheck size={14}/> Secure checkout</p>
         </div>
         <div className="copyright">
-          © 2026 GreenBasket. All rights reserved. <span>Made with <Heart size={12} fill="currentColor"/> for fresh living.</span>
+          © 2026 GreenBasket. All rights reserved. <span>Made with <Heart size={12} fill="currentColor" style={{ cursor: 'default' }} onClick={(e) => { if (e.detail === 3) window.open('https://greenbasket-admin-panel.vercel.app/', '_blank', 'noopener,noreferrer'); }}/> for fresh living.</span>
         </div>
       </footer>
 

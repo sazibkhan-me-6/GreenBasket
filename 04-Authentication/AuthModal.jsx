@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, UserRound, Lock, Mail, ShieldCheck, CheckCircle2, LogOut, Settings } from 'lucide-react';
+import { X, UserRound, Lock, Mail, ShieldCheck, CheckCircle2, LogOut } from 'lucide-react';
 
 export default function AuthModal({ isOpen, onClose, onLoginSuccess, currentUser, onLogout }) {
   const [tab, setTab] = useState('login'); // 'login' or 'register'
@@ -91,53 +91,30 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, currentUser
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <a 
-                href="https://greenbasket-admin-panel.vercel.app/"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  gap: '6px', 
-                  padding: '11px', 
-                  borderRadius: '12px', 
-                  background: '#396515', 
-                  color: '#ffffff', 
-                  textDecoration: 'none', 
-                  fontSize: '12px', 
-                  fontWeight: 700 
-                }}
-              >
-                <Settings size={15}/> Open Admin Panel ↗
-              </a>
-
-              <button 
-                type="button"
-                onClick={() => {
-                  if (onLogout) onLogout();
-                  onClose();
-                }}
-                style={{ 
-                  width: '100%', 
-                  padding: '11px', 
-                  borderRadius: '12px', 
-                  border: '1px solid #d4deca', 
-                  background: '#ffffff', 
-                  color: '#9e2a2b', 
-                  cursor: 'pointer', 
-                  fontWeight: 600,
-                  fontSize: '13px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px'
-                }}
-              >
-                <LogOut size={15}/> Sign Out
-              </button>
-            </div>
+            <button 
+              type="button"
+              onClick={() => {
+                if (onLogout) onLogout();
+                onClose();
+              }}
+              style={{ 
+                width: '100%', 
+                padding: '11px', 
+                borderRadius: '12px', 
+                border: '1px solid #d4deca', 
+                background: '#ffffff', 
+                color: '#9e2a2b', 
+                cursor: 'pointer', 
+                fontWeight: 600,
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+            >
+              <LogOut size={15}/> Sign Out
+            </button>
           </div>
         ) : (
           <>
