@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { X, UserRound, Lock, Mail, ShieldCheck, CheckCircle2, Settings, LogOut } from 'lucide-react';
+import { X, UserRound, Lock, Mail, ShieldCheck, CheckCircle2, LogOut } from 'lucide-react';
 
-export default function AuthModal({ isOpen, onClose, onLoginSuccess, currentUser, onLogout, onOpenAdmin }) {
+export default function AuthModal({ isOpen, onClose, onLoginSuccess, currentUser, onLogout }) {
   const [tab, setTab] = useState('login'); // 'login' or 'register'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('customer');
   const [error, setError] = useState('');
 
   if (!isOpen) return null;
@@ -17,13 +16,12 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, currentUser
       return;
     }
     setError('');
-    onLoginSuccess(email, password, role);
+    onLoginSuccess(email, password, 'customer');
     onClose();
   };
 
-  const handleQuickDemo = (demoRole) => {
-    const demoEmail = demoRole === 'admin' ? 'admin@greenbasket.com' : 'customer@freshlife.org';
-    onLoginSuccess(demoEmail, 'password123', demoRole);
+  const handleQuickDemo = () => {
+    onLoginSuccess('customer@freshlife.org', 'password123', 'customer');
     onClose();
   };
 
@@ -76,10 +74,9 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, currentUser
                 color: '#284f10', 
                 background: '#dff1b8', 
                 padding: '3px 10px', 
-                borderRadius: '12px',
-                textTransform: 'capitalize' 
+                borderRadius: '12px'
               }}>
-                {currentUser.role === 'admin' ? 'Store Administrator' : 'Verified Customer'}
+                Verified Customer
               </span>
             </div>
 
@@ -89,51 +86,35 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, currentUser
                 <b>{currentUser.email}</b>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#67795d' }}>Status:</span>
-                <span style={{ color: '#3f7215', fontWeight: 600 }}>Active</span>
+                <span style={{ color: '#67795d' }}>Membership:</span>
+                <span style={{ color: '#3f7215', fontWeight: 600 }}>Active Member</span>
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '9px' }}>
-              {currentUser.role === 'admin' && (
-                <button 
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={() => {
-                    onClose();
-                    if (onOpenAdmin) onOpenAdmin();
-                  }}
-                  style={{ width: '100%', padding: '12px', gap: '8px', fontSize: '13px' }}
-                >
-                  <Settings size={16}/> Open Admin Control Panel
-                </button>
-              )}
-
-              <button 
-                type="button"
-                onClick={() => {
-                  if (onLogout) onLogout();
-                  onClose();
-                }}
-                style={{ 
-                  width: '100%', 
-                  padding: '11px', 
-                  borderRadius: '12px', 
-                  border: '1px solid #d4deca', 
-                  background: '#ffffff', 
-                  color: '#9e2a2b', 
-                  cursor: 'pointer', 
-                  fontWeight: 600,
-                  fontSize: '13px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px'
-                }}
-              >
-                <LogOut size={15}/> Sign Out
-              </button>
-            </div>
+            <button 
+              type="button"
+              onClick={() => {
+                if (onLogout) onLogout();
+                onClose();
+              }}
+              style={{ 
+                width: '100%', 
+                padding: '11px', 
+                borderRadius: '12px', 
+                border: '1px solid #d4deca', 
+                background: '#ffffff', 
+                color: '#9e2a2b', 
+                cursor: 'pointer', 
+                fontWeight: 600,
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+            >
+              <LogOut size={15}/> Sign Out
+            </button>
           </div>
         ) : (
           <>
@@ -236,18 +217,6 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, currentUser
                 </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#3b4e31', marginBottom: '5px' }}>Account Role</label>
-                <select 
-                  value={role} 
-                  onChange={e => setRole(e.target.value)}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #d4dec8', fontSize: '13px', background: '#ffffff', color: '#162e0c' }}
-                >
-                  <option value="customer">Regular Customer</option>
-                  <option value="admin">Store Admin (Access Admin Dashboard)</option>
-                </select>
-              </div>
-
               <button 
                 type="submit" 
                 className="btn btn-primary"
@@ -259,23 +228,13 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, currentUser
 
             {/* Quick Demo Login */}
             <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #e7ede0', textAlign: 'center' }}>
-              <span style={{ fontSize: '11px', color: '#7a8c72', fontWeight: 600 }}>Quick One-Click Demo:</span>
-              <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                <button 
-                  type="button" 
-                  onClick={() => handleQuickDemo('customer')}
-                  style={{ flex: 1, padding: '7px 10px', fontSize: '11px', borderRadius: '8px', border: '1px solid #d0dcc5', background: '#f3f6ee', color: '#28411b', cursor: 'pointer', fontWeight: 600 }}
-                >
-                  Customer Demo
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => handleQuickDemo('admin')}
-                  style={{ flex: 1, padding: '7px 10px', fontSize: '11px', borderRadius: '8px', border: '1px solid #a3c948', background: '#eaf4cf', color: '#2b4d13', cursor: 'pointer', fontWeight: 700 }}
-                >
-                  Admin Demo ✦
-                </button>
-              </div>
+              <button 
+                type="button" 
+                onClick={handleQuickDemo}
+                style={{ width: '100%', padding: '8px 12px', fontSize: '12px', borderRadius: '8px', border: '1px solid #d0dcc5', background: '#f3f6ee', color: '#28411b', cursor: 'pointer', fontWeight: 600 }}
+              >
+                1-Click Demo Customer Login
+              </button>
             </div>
           </>
         )}

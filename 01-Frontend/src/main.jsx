@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   Leaf, Truck, Headphones, Search, UserRound, ShoppingCart, ArrowRight,
   ShieldCheck, Sprout, Heart, Menu, X, Star, CheckCircle2, Mail, Instagram,
-  Facebook, Youtube, Plus, Minus, Settings
+  Facebook, Youtube, Plus, Minus
 } from 'lucide-react';
 import './styles.css';
 
@@ -12,15 +12,13 @@ import { categories } from '@products/products.js';
 import { api } from '@api/api.js';
 import CartDrawer from '@cart/CartDrawer.jsx';
 import AuthModal from '@auth/AuthModal.jsx';
-import AdminModal from '@admin/AdminModal.jsx';
 import CheckoutModal from '@payment/CheckoutModal.jsx';
 
 const photo = (id, w = 700) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&q=85`;
 
 function App() {
   // Persistent state from api
-  const [productsList, setProductsList] = useState(() => api.getProducts());
-  const [ordersList, setOrdersList] = useState(() => api.getOrders());
+  const [productsList] = useState(() => api.getProducts());
   const [currentUser, setCurrentUser] = useState(() => api.getCurrentUser());
   const [cart, setCart] = useState(() => api.getCart());
   const [favorites, setFavorites] = useState(() => api.getFavorites());
@@ -32,7 +30,6 @@ function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
-  const [adminOpen, setAdminOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
@@ -96,27 +93,8 @@ function App() {
     showToast('Signed out successfully.');
   };
 
-  const handleAddProduct = (newProdData) => {
-    const added = api.addProduct(newProdData);
-    setProductsList(api.getProducts());
-    showToast(`Added "${added.name}" to catalog!`);
-  };
-
-  const handleUpdateProduct = (id, updatedData) => {
-    api.updateProduct(id, updatedData);
-    setProductsList(api.getProducts());
-    showToast('Product updated live! ⚡');
-  };
-
-  const handleDeleteProduct = (id) => {
-    api.deleteProduct(id);
-    setProductsList(api.getProducts());
-    showToast('Product removed from catalog.');
-  };
-
   const handleOrderCompleted = (orderData) => {
     const newOrder = api.createOrder(orderData);
-    setOrdersList(api.getOrders());
     setCart({});
     showToast(`Order #${newOrder.id} confirmed!`);
     return newOrder;
@@ -129,28 +107,7 @@ function App() {
         <div className="top-inner">
           <span><Truck size={14}/> FREE DELIVERY on orders over $49</span>
           <span><Sprout size={14}/> Eat Fresh, Live Healthy</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button 
-              onClick={() => setAdminOpen(true)}
-              style={{
-                background: '#457319',
-                color: '#effbd2',
-                border: '1px solid #6e9d30',
-                borderRadius: '6px',
-                padding: '2px 9px',
-                fontSize: '11px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}
-              title="Open GreenBasket Admin Control Panel"
-            >
-              <Settings size={12}/> Admin Panel
-            </button>
-            <span><Headphones size={14}/> Support 24/7</span>
-          </div>
+          <span><Headphones size={14}/> Support 24/7</span>
         </div>
       </div>
 
@@ -183,16 +140,6 @@ function App() {
         </nav>
 
         <div className="header-actions">
-          {/* Admin Control Panel Button */}
-          <button 
-            className="icon-btn" 
-            aria-label="Admin Control Panel" 
-            onClick={() => setAdminOpen(true)}
-            title="Admin Control Panel"
-          >
-            <Settings size={20}/>
-          </button>
-
           {/* Search Trigger */}
           <button className="icon-btn" aria-label="Search" onClick={() => setSearchOpen(!searchOpen)}>
             <Search/>
@@ -203,7 +150,7 @@ function App() {
             className="icon-btn account-btn" 
             aria-label="Account" 
             onClick={() => setAuthOpen(true)}
-            title={currentUser ? `${currentUser.name} (${currentUser.role})` : "Account"}
+            title={currentUser ? currentUser.name : "Account"}
             style={{ position: 'relative' }}
           >
             <UserRound/>
@@ -487,9 +434,6 @@ function App() {
           <a href="#account" onClick={(e) => { e.preventDefault(); setAuthOpen(true); }}>
             My Account {currentUser ? `(${currentUser.name})` : ''}
           </a>
-          <a href="#admin" onClick={(e) => { e.preventDefault(); setAdminOpen(true); }}>
-            Admin Dashboard
-          </a>
           <a href="#contact">Track Order</a>
           <a href="#contact">Shipping & Delivery</a>
           <a href="#contact">Returns & Refunds</a>
@@ -517,33 +461,6 @@ function App() {
           © 2026 GreenBasket. All rights reserved. <span>Made with <Heart size={12} fill="currentColor"/> for fresh living.</span>
         </div>
       </footer>
-
-      {/* Floating Admin Control Panel Trigger */}
-      <button 
-        onClick={() => setAdminOpen(true)}
-        aria-label="Admin Control Panel"
-        title="Open Admin Control Panel (Live items & pricing)"
-        style={{
-          position: 'fixed',
-          bottom: '22px',
-          left: '22px',
-          zIndex: 35,
-          background: 'linear-gradient(135deg, #1c3b0d 0%, #0e2406 100%)',
-          color: '#d4f268',
-          border: '1.5px solid #578a1f',
-          borderRadius: '30px',
-          padding: '9px 16px',
-          fontSize: '12px',
-          fontWeight: 700,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '7px',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
-          cursor: 'pointer'
-        }}
-      >
-        <Settings size={15}/> Admin Panel
-      </button>
 
       {/* Toast Notification */}
       {notice && (
@@ -583,18 +500,6 @@ function App() {
         onLoginSuccess={handleLoginSuccess}
         currentUser={currentUser}
         onLogout={handleLogout}
-        onOpenAdmin={() => setAdminOpen(true)}
-      />
-
-      {/* Admin Panel Modal */}
-      <AdminModal
-        isOpen={adminOpen}
-        onClose={() => setAdminOpen(false)}
-        products={productsList}
-        orders={ordersList}
-        onAddProduct={handleAddProduct}
-        onUpdateProduct={handleUpdateProduct}
-        onDeleteProduct={handleDeleteProduct}
       />
     </div>
   );
