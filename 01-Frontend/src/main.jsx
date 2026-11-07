@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   Leaf, Truck, Headphones, Search, UserRound, ShoppingCart, ArrowRight,
   ShieldCheck, Sprout, Heart, Menu, X, Star, CheckCircle2, Mail, Instagram,
-  Facebook, Youtube, Plus, Minus
+  Facebook, Youtube, Plus, Minus, Settings
 } from 'lucide-react';
 import './styles.css';
 
@@ -47,15 +47,10 @@ function App() {
     api.saveFavorites(favorites);
   }, [favorites]);
 
-  const getEffectivePrice = (p) => {
-    if (p.discountPrice && Number(p.discountPrice) < Number(p.price)) {
-      return Number(p.discountPrice);
-    }
-    return Number(p.price) || 0;
-  };
+  const getProductPrice = (p) => (p && p.discountPrice && Number(p.discountPrice) > 0 && Number(p.discountPrice) < Number(p.price)) ? Number(p.discountPrice) : Number(p.price || 0);
 
   const cartCount = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
-  const cartTotal = productsList.reduce((sum, p) => sum + getEffectivePrice(p) * (cart[p.id] || 0), 0);
+  const cartTotal = productsList.reduce((sum, p) => sum + getProductPrice(p) * (cart[p.id] || 0), 0);
 
   const shownProducts = useMemo(() => {
     return productsList.filter(p =>
@@ -107,10 +102,10 @@ function App() {
     showToast(`Added "${added.name}" to catalog!`);
   };
 
-  const handleUpdateProduct = (updatedProd) => {
-    api.updateProduct(updatedProd);
+  const handleUpdateProduct = (id, updatedData) => {
+    api.updateProduct(id, updatedData);
     setProductsList(api.getProducts());
-    showToast(`Live pricing updated for "${updatedProd.name}"`);
+    showToast('Product updated live! ⚡');
   };
 
   const handleDeleteProduct = (id) => {
@@ -134,7 +129,28 @@ function App() {
         <div className="top-inner">
           <span><Truck size={14}/> FREE DELIVERY on orders over $49</span>
           <span><Sprout size={14}/> Eat Fresh, Live Healthy</span>
-          <span><Headphones size={14}/> Support 24/7</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button 
+              onClick={() => setAdminOpen(true)}
+              style={{
+                background: '#457319',
+                color: '#effbd2',
+                border: '1px solid #6e9d30',
+                borderRadius: '6px',
+                padding: '2px 9px',
+                fontSize: '11px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+              title="Open GreenBasket Admin Control Panel"
+            >
+              <Settings size={12}/> Admin Panel
+            </button>
+            <span><Headphones size={14}/> Support 24/7</span>
+          </div>
         </div>
       </div>
 
@@ -167,28 +183,14 @@ function App() {
         </nav>
 
         <div className="header-actions">
-          {/* Admin Control Panel Access Button */}
+          {/* Admin Control Panel Button */}
           <button 
+            className="icon-btn" 
+            aria-label="Admin Control Panel" 
             onClick={() => setAdminOpen(true)}
-            className="admin-badge-btn"
-            title="Open GreenBasket Admin Control Panel"
-            style={{
-              background: '#1a3e11',
-              color: '#c5ea57',
-              border: '1px solid #3c7022',
-              borderRadius: '20px',
-              padding: '6px 13px',
-              fontSize: '11px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              letterSpacing: '0.2px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
-            }}
+            title="Admin Control Panel"
           >
-            <ShieldCheck size={14}/> Admin Panel
+            <Settings size={20}/>
           </button>
 
           {/* Search Trigger */}
@@ -332,7 +334,7 @@ function App() {
           </div>
         </section>
 
-        {/* Products Grid Block with Live Pricing & Discount Badges */}
+        {/* Products Grid Block */}
         <section className="section-wrap section-block products-block" id="products">
           <div className="section-heading">
             <div>
@@ -363,17 +365,18 @@ function App() {
           {shownProducts.length ? (
             <div className="product-grid">
               {shownProducts.map(p => {
-                const hasDiscount = p.discountPrice && Number(p.discountPrice) < Number(p.price);
-                const currentPrice = hasDiscount ? Number(p.discountPrice) : Number(p.price);
-                const originalPrice = Number(p.price);
-
+                const hasDiscount = p.discountPrice && Number(p.discountPrice) > 0 && Number(p.discountPrice) < Number(p.price);
                 return (
                   <article className="product-card" key={p.id}>
                     <div className="product-image">
                       <img src={p.image} alt={p.name}/>
-                      <span className="product-tag">
-                        {hasDiscount ? `${Math.round((1 - currentPrice / originalPrice) * 100)}% OFF` : (p.tag || 'Organic')}
-                      </span>
+                      {hasDiscount ? (
+                        <span className="product-tag" style={{ background: '#e11d48', color: '#fff', fontWeight: 800 }}>
+                          -{Math.round((1 - p.discountPrice / p.price) * 100)}% OFF
+                        </span>
+                      ) : (
+                        <span className="product-tag">{p.tag || 'Organic'}</span>
+                      )}
                       <button 
                         className={'heart-btn ' + (favorites.includes(p.id) ? 'hearted' : '')} 
                         aria-label="Toggle favorite" 
@@ -391,13 +394,20 @@ function App() {
                       <small>{p.unit}</small>
                       <div className="product-bottom">
                         <div>
-                          <b>${currentPrice.toFixed(2)}</b>
-                          {hasDiscount && (
-                            <del style={{ marginLeft: '5px', fontSize: '11px', color: '#8aa380', fontWeight: 500 }}>
-                              ${originalPrice.toFixed(2)}
-                            </del>
+                          {hasDiscount ? (
+                            <>
+                              <b style={{ color: 'var(--lime)' }}>${Number(p.discountPrice).toFixed(2)}</b>
+                              <span style={{ textDecoration: 'line-through', opacity: 0.55, fontSize: '11px', marginLeft: '5px' }}>
+                                ${Number(p.price).toFixed(2)}
+                              </span>
+                              <small> / {p.unit.split(' / ')[0]}</small>
+                            </>
+                          ) : (
+                            <>
+                              <b>${Number(p.price).toFixed(2)}</b>
+                              <small> / {p.unit.split(' / ')[0]}</small>
+                            </>
                           )}
-                          <small> / {p.unit.split(' / ')[0]}</small>
                         </div>
                         <button className="add-btn" onClick={() => addToCart(p.id)}>
                           {cart[p.id] ? (
@@ -478,7 +488,7 @@ function App() {
             My Account {currentUser ? `(${currentUser.name})` : ''}
           </a>
           <a href="#admin" onClick={(e) => { e.preventDefault(); setAdminOpen(true); }}>
-            Admin Control Panel
+            Admin Dashboard
           </a>
           <a href="#contact">Track Order</a>
           <a href="#contact">Shipping & Delivery</a>
@@ -507,6 +517,33 @@ function App() {
           © 2026 GreenBasket. All rights reserved. <span>Made with <Heart size={12} fill="currentColor"/> for fresh living.</span>
         </div>
       </footer>
+
+      {/* Floating Admin Control Panel Trigger */}
+      <button 
+        onClick={() => setAdminOpen(true)}
+        aria-label="Admin Control Panel"
+        title="Open Admin Control Panel (Live items & pricing)"
+        style={{
+          position: 'fixed',
+          bottom: '22px',
+          left: '22px',
+          zIndex: 35,
+          background: 'linear-gradient(135deg, #1c3b0d 0%, #0e2406 100%)',
+          color: '#d4f268',
+          border: '1.5px solid #578a1f',
+          borderRadius: '30px',
+          padding: '9px 16px',
+          fontSize: '12px',
+          fontWeight: 700,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '7px',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+          cursor: 'pointer'
+        }}
+      >
+        <Settings size={15}/> Admin Panel
+      </button>
 
       {/* Toast Notification */}
       {notice && (

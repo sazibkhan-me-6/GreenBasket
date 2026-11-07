@@ -16,18 +16,12 @@ export default function CheckoutModal({ isOpen, onClose, cart, products, cartTot
 
   const deliveryFee = cartTotal >= 49 ? 0 : 4.99;
   const grandTotal = cartTotal + deliveryFee;
-
-  const getEffectivePrice = (p) => {
-    if (p.discountPrice && Number(p.discountPrice) < Number(p.price)) {
-      return Number(p.discountPrice);
-    }
-    return Number(p.price) || 0;
-  };
-
+  const getItemPrice = (p) => (p && p.discountPrice && Number(p.discountPrice) > 0 && Number(p.discountPrice) < Number(p.price)) ? Number(p.discountPrice) : Number(p.price || 0);
   const cartItems = products.filter(p => cart[p.id]).map(p => ({
     id: p.id,
     name: p.name,
-    price: getEffectivePrice(p),
+    price: getItemPrice(p),
+    originalPrice: p.price,
     qty: cart[p.id],
     unit: p.unit
   }));
@@ -88,7 +82,7 @@ export default function CheckoutModal({ isOpen, onClose, cart, products, cartTot
                       type="text" 
                       value={formData.name} 
                       onChange={e => setFormData({ ...formData, name: e.target.value })}
-                      style={{ width: '100%', padding: '9px 11px', borderRadius: '8px', border: '1px solid #c8d6bf', fontSize: '12px' }}
+                      style={{ width: '100%', padding: '9px 11px', border: '1px solid #d1dcc7', borderRadius: '8px', fontSize: '12px', background: '#fff' }}
                     />
                   </div>
                   <div>
@@ -98,138 +92,151 @@ export default function CheckoutModal({ isOpen, onClose, cart, products, cartTot
                       type="text" 
                       value={formData.phone} 
                       onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                      style={{ width: '100%', padding: '9px 11px', borderRadius: '8px', border: '1px solid #c8d6bf', fontSize: '12px' }}
+                      style={{ width: '100%', padding: '9px 11px', border: '1px solid #d1dcc7', borderRadius: '8px', fontSize: '12px', background: '#fff' }}
                     />
                   </div>
-                  <div style={{ gridColumn: 'span 2' }}>
-                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#4b5e43', marginBottom: '4px' }}>Street / House Address</label>
-                    <input 
-                      required 
-                      type="text" 
-                      value={formData.address} 
-                      onChange={e => setFormData({ ...formData, address: e.target.value })}
-                      style={{ width: '100%', padding: '9px 11px', borderRadius: '8px', border: '1px solid #c8d6bf', fontSize: '12px' }}
-                    />
-                  </div>
+                </div>
+
+                <div style={{ marginTop: '10px' }}>
+                  <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#4b5e43', marginBottom: '4px' }}>Delivery Address</label>
+                  <input 
+                    required 
+                    type="text" 
+                    value={formData.address} 
+                    onChange={e => setFormData({ ...formData, address: e.target.value })}
+                    style={{ width: '100%', padding: '9px 11px', border: '1px solid #d1dcc7', borderRadius: '8px', fontSize: '12px', background: '#fff' }}
+                  />
                 </div>
               </div>
 
               {/* Payment Methods */}
-              <div style={{ marginBottom: '20px' }}>
+              <div style={{ marginBottom: '18px' }}>
                 <h4 style={{ margin: '0 0 10px', fontSize: '13px', color: '#273f1d' }}>2. Payment Method</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                  <button 
-                    type="button" 
+                  <div 
                     onClick={() => setPaymentMethod('cod')}
-                    style={{ 
-                      padding: '12px 10px', 
-                      borderRadius: '12px', 
-                      border: paymentMethod === 'cod' ? '2px solid #58921e' : '1px solid #d4dece',
-                      background: paymentMethod === 'cod' ? '#eef7de' : '#ffffff',
+                    style={{
+                      border: paymentMethod === 'cod' ? '2px solid #7cb52a' : '1px solid #d1dcc7',
+                      background: paymentMethod === 'cod' ? '#f0f8e3' : '#fff',
+                      borderRadius: '10px',
+                      padding: '12px 10px',
                       cursor: 'pointer',
                       textAlign: 'center'
                     }}
                   >
-                    <Banknote size={20} color="#3c6b14" style={{ margin: '0 auto 4px', display: 'block' }}/>
-                    <b style={{ fontSize: '11px', display: 'block', color: '#1a3311' }}>Cash on Delivery</b>
-                    <small style={{ fontSize: '9px', color: '#687d60' }}>Pay upon receipt</small>
-                  </button>
+                    <Banknote size={22} color="#457019" style={{ margin: '0 auto 6px' }}/>
+                    <b style={{ display: 'block', fontSize: '11px' }}>Cash on Delivery</b>
+                    <small style={{ fontSize: '9px', color: '#687761' }}>Pay upon receipt</small>
+                  </div>
 
-                  <button 
-                    type="button" 
+                  <div 
                     onClick={() => setPaymentMethod('card')}
-                    style={{ 
-                      padding: '12px 10px', 
-                      borderRadius: '12px', 
-                      border: paymentMethod === 'card' ? '2px solid #58921e' : '1px solid #d4dece',
-                      background: paymentMethod === 'card' ? '#eef7de' : '#ffffff',
+                    style={{
+                      border: paymentMethod === 'card' ? '2px solid #7cb52a' : '1px solid #d1dcc7',
+                      background: paymentMethod === 'card' ? '#f0f8e3' : '#fff',
+                      borderRadius: '10px',
+                      padding: '12px 10px',
                       cursor: 'pointer',
                       textAlign: 'center'
                     }}
                   >
-                    <CreditCard size={20} color="#3c6b14" style={{ margin: '0 auto 4px', display: 'block' }}/>
-                    <b style={{ fontSize: '11px', display: 'block', color: '#1a3311' }}>Credit / Debit Card</b>
-                    <small style={{ fontSize: '9px', color: '#687d60' }}>Visa, MasterCard</small>
-                  </button>
+                    <CreditCard size={22} color="#457019" style={{ margin: '0 auto 6px' }}/>
+                    <b style={{ display: 'block', fontSize: '11px' }}>Debit / Credit Card</b>
+                    <small style={{ fontSize: '9px', color: '#687761' }}>Visa, MC, Amex</small>
+                  </div>
 
-                  <button 
-                    type="button" 
-                    onClick={() => setPaymentMethod('mfs')}
-                    style={{ 
-                      padding: '12px 10px', 
-                      borderRadius: '12px', 
-                      border: paymentMethod === 'mfs' ? '2px solid #58921e' : '1px solid #d4dece',
-                      background: paymentMethod === 'mfs' ? '#eef7de' : '#ffffff',
+                  <div 
+                    onClick={() => setPaymentMethod('mobile')}
+                    style={{
+                      border: paymentMethod === 'mobile' ? '2px solid #7cb52a' : '1px solid #d1dcc7',
+                      background: paymentMethod === 'mobile' ? '#f0f8e3' : '#fff',
+                      borderRadius: '10px',
+                      padding: '12px 10px',
                       cursor: 'pointer',
                       textAlign: 'center'
                     }}
                   >
-                    <Smartphone size={20} color="#3c6b14" style={{ margin: '0 auto 4px', display: 'block' }}/>
-                    <b style={{ fontSize: '11px', display: 'block', color: '#1a3311' }}>Mobile Banking</b>
-                    <small style={{ fontSize: '9px', color: '#687d60' }}>bKash / Nagad</small>
-                  </button>
+                    <Smartphone size={22} color="#457019" style={{ margin: '0 auto 6px' }}/>
+                    <b style={{ display: 'block', fontSize: '11px' }}>Mobile Banking</b>
+                    <small style={{ fontSize: '9px', color: '#687761' }}>bKash / Nagad</small>
+                  </div>
                 </div>
               </div>
 
-              {/* Order Items Preview */}
-              <div style={{ background: '#f4f8ef', borderRadius: '12px', padding: '14px', marginBottom: '18px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px' }}>
-                  <span>Items ({cartItems.length}):</span>
+              {/* Order summary breakdown */}
+              <div style={{ background: '#f2f6ec', borderRadius: '12px', padding: '14px', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px' }}>
+                  <span style={{ color: '#55664d' }}>Basket items ({cartItems.reduce((acc, i) => acc + i.qty, 0)})</span>
                   <b>${cartTotal.toFixed(2)}</b>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px' }}>
-                  <span>Delivery Fee:</span>
-                  <b>{deliveryFee === 0 ? <span style={{ color: '#316911' }}>FREE</span> : `$${deliveryFee.toFixed(2)}`}</b>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '8px' }}>
+                  <span style={{ color: '#55664d' }}>Estimated Delivery</span>
+                  <b>{deliveryFee === 0 ? <span style={{ color: '#3f7c12' }}>FREE</span> : `$${deliveryFee.toFixed(2)}`}</b>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #d9e6d0', paddingTop: '8px', fontSize: '14px' }}>
-                  <b style={{ color: '#17300c' }}>Grand Total:</b>
-                  <b style={{ color: '#27570d', fontSize: '17px' }}>${grandTotal.toFixed(2)}</b>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #d6e2cb', paddingTop: '8px', fontSize: '15px' }}>
+                  <b>Total to Pay</b>
+                  <b style={{ color: '#264a13' }}>${grandTotal.toFixed(2)}</b>
                 </div>
               </div>
 
               <button 
                 type="submit" 
                 className="btn btn-primary"
-                style={{ width: '100%', padding: '14px', fontSize: '14px', gap: '8px' }}
+                style={{ width: '100%', padding: '13px', fontSize: '14px', fontWeight: 700 }}
               >
-                Confirm & Place Order (${grandTotal.toFixed(2)}) <ArrowRight size={17}/>
+                Confirm & Place Order <ArrowRight size={17}/>
               </button>
             </form>
           </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '20px 0 10px' }}>
-            <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#dcf1b5', color: '#386e11', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px' }}>
-              <CheckCircle2 size={36}/>
+          /* Order Confirmation View */
+          <div style={{ textAlign: 'center', padding: '15px 10px' }}>
+            <div style={{ 
+              width: '56px', 
+              height: '56px', 
+              borderRadius: '50%', 
+              background: '#e3f5cb', 
+              color: '#3e7a11', 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              marginBottom: '14px' 
+            }}>
+              <CheckCircle2 size={32}/>
             </div>
-            <h2 style={{ fontFamily: 'Manrope, sans-serif', fontSize: '24px', margin: '0 0 8px', color: '#152e0a' }}>
-              Thank You for Your Order!
+            <h2 style={{ margin: '0 0 6px', fontFamily: 'Manrope, sans-serif', fontSize: '24px', color: '#16310d' }}>
+              Order Placed Successfully!
             </h2>
-            <p style={{ fontSize: '13px', color: '#5f7354', maxWidth: '380px', margin: '0 auto 18px' }}>
-              Your order <b>#{completedOrder?.id}</b> has been received and is being prepared with 100% fresh, farm-picked produce.
+            <p style={{ margin: '0 0 16px', color: '#5c7052', fontSize: '13px' }}>
+              Thank you, <b>{completedOrder?.customerName}</b>. Your fresh produce order has been received and is being prepared!
             </p>
 
-            <div style={{ background: '#f4f8ef', borderRadius: '12px', padding: '14px', textAlign: 'left', maxWidth: '420px', margin: '0 auto 20px', fontSize: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ color: '#687c5e' }}>Delivery To:</span>
-                <b>{completedOrder?.customerName}</b>
+            <div style={{ background: '#f3f6ee', borderRadius: '14px', padding: '16px', textAlign: 'left', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px' }}>
+                <span style={{ color: '#68795f' }}>Order ID:</span>
+                <b>{completedOrder?.id}</b>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ color: '#687c5e' }}>Payment:</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px' }}>
+                <span style={{ color: '#68795f' }}>Total Amount:</span>
+                <b>${completedOrder?.total}</b>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '12px' }}>
+                <span style={{ color: '#68795f' }}>Payment:</span>
                 <b>{completedOrder?.paymentMethod}</b>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#687c5e' }}>Total Amount:</span>
-                <b style={{ color: '#2b5c0e', fontSize: '14px' }}>${Number(completedOrder?.total).toFixed(2)}</b>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                <span style={{ color: '#68795f' }}>Status:</span>
+                <span style={{ color: '#27690f', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <Truck size={13}/> Out for Preparation
+                </span>
               </div>
             </div>
 
             <button 
+              type="button" 
               className="btn btn-primary" 
-              onClick={() => {
-                setStep('form');
-                onClose();
-              }}
-              style={{ padding: '11px 24px' }}
+              onClick={onClose}
+              style={{ width: '100%', padding: '12px' }}
             >
               Continue Shopping
             </button>

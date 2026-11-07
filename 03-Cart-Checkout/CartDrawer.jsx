@@ -34,13 +34,7 @@ export default function CartDrawer({
   const finalTotal = netSubtotal + deliveryFee;
 
   const cartProductList = products.filter(p => cart[p.id]);
-
-  const getEffectivePrice = (p) => {
-    if (p.discountPrice && Number(p.discountPrice) < Number(p.price)) {
-      return Number(p.discountPrice);
-    }
-    return Number(p.price) || 0;
-  };
+  const getItemPrice = (p) => (p && p.discountPrice && Number(p.discountPrice) > 0 && Number(p.discountPrice) < Number(p.price)) ? Number(p.discountPrice) : Number(p.price || 0);
 
   return (
     <div className="drawer-backdrop" onClick={onClose}>
@@ -69,22 +63,17 @@ export default function CartDrawer({
             <div className="cart-items">
               {cartProductList.map(p => {
                 const qty = cart[p.id];
-                const effPrice = getEffectivePrice(p);
-                const hasDiscount = p.discountPrice && Number(p.discountPrice) < Number(p.price);
-
                 return (
                   <div className="cart-item" key={p.id}>
                     <img src={p.image} alt={p.name}/>
                     <div className="cart-item-info">
                       <b>{p.name}</b>
-                      <div>
-                        <small>${effPrice.toFixed(2)} each</small>
-                        {hasDiscount && (
-                          <del style={{ fontSize: '10px', color: '#889e7e', marginLeft: '5px' }}>
-                            ${Number(p.price).toFixed(2)}
-                          </del>
+                      <small>
+                        ${getItemPrice(p).toFixed(2)} each
+                        {p.discountPrice && Number(p.discountPrice) < Number(p.price) && (
+                          <span style={{ textDecoration: 'line-through', marginLeft: '5px', opacity: 0.6 }}>${Number(p.price).toFixed(2)}</span>
                         )}
-                      </div>
+                      </small>
                       <div className="qty-control">
                         <button onClick={() => onChangeQty(p.id, -1)} aria-label="Decrease quantity">
                           <Minus size={13}/>
@@ -95,7 +84,7 @@ export default function CartDrawer({
                         </button>
                       </div>
                     </div>
-                    <b className="item-total">${(effPrice * qty).toFixed(2)}</b>
+                    <b className="item-total">${(getItemPrice(p) * qty).toFixed(2)}</b>
                   </div>
                 );
               })}

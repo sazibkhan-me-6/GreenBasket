@@ -56,22 +56,23 @@ export const api = {
     return newProduct;
   },
 
-  updateProduct: (updatedData) => {
-    const products = api.getProducts();
-    const updated = products.map(p => {
-      if (p.id === updatedData.id) {
+  updateProduct: (id, updatedFields) => {
+    const products = api.getProducts().map(p => {
+      if (p.id === id) {
+        const discountVal = updatedFields.discountPrice !== undefined && updatedFields.discountPrice !== '' 
+          ? Number(updatedFields.discountPrice) 
+          : (updatedFields.discountPrice === '' ? null : p.discountPrice);
         return {
           ...p,
-          ...updatedData,
-          price: Number(updatedData.price) || p.price,
-          discountPrice: updatedData.discountPrice ? Number(updatedData.discountPrice) : null,
-          stock: updatedData.stock !== undefined ? Number(updatedData.stock) : p.stock,
+          ...updatedFields,
+          price: updatedFields.price !== undefined ? Number(updatedFields.price) : p.price,
+          discountPrice: discountVal
         };
       }
       return p;
     });
-    setStore(STORAGE_KEYS.PRODUCTS, updated);
-    return updated;
+    setStore(STORAGE_KEYS.PRODUCTS, products);
+    return products;
   },
 
   deleteProduct: (id) => {
