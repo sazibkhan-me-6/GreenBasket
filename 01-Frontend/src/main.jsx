@@ -34,6 +34,22 @@ function App() {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
   const [notice, setNotice] = useState('');
+  const [storeSettings, setStoreSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('gb_store_settings');
+      return saved ? JSON.parse(saved) : {
+        announcement: 'FREE DELIVERY on orders over $49',
+        promoCode: 'GREEN20',
+        promoDiscount: 20
+      };
+    } catch {
+      return {
+        announcement: 'FREE DELIVERY on orders over $49',
+        promoCode: 'GREEN20',
+        promoDiscount: 20
+      };
+    }
+  });
 
   const bridgeIframeRef = useRef(null);
 
@@ -83,6 +99,10 @@ function App() {
           setProductsList(normalized);
           api.saveProducts(normalized);
         }
+      }
+      if (e.data.settings) {
+        setStoreSettings(e.data.settings);
+        try { localStorage.setItem('gb_store_settings', JSON.stringify(e.data.settings)); } catch (err) {}
       }
     };
 
@@ -213,7 +233,7 @@ function App() {
       {/* Top Banner Strip */}
       <div className="top-strip">
         <div className="top-inner">
-          <span><Truck size={14}/> FREE DELIVERY on orders over $49</span>
+          <span><Truck size={14}/> {storeSettings.announcement || 'FREE DELIVERY on orders over $49'}</span>
           <span><Sprout size={14}/> Eat Fresh, Live Healthy</span>
           <span><Headphones size={14}/> Support 24/7</span>
         </div>
@@ -589,6 +609,7 @@ function App() {
         cartTotal={cartTotal}
         onChangeQty={changeQty}
         onOpenCheckout={() => setCheckoutOpen(true)}
+        storeSettings={storeSettings}
       />
 
       {/* Checkout & Payment Modal */}

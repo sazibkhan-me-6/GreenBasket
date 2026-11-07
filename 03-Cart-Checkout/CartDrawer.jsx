@@ -9,7 +9,8 @@ export default function CartDrawer({
   cartCount,
   cartTotal,
   onChangeQty,
-  onOpenCheckout
+  onOpenCheckout,
+  storeSettings
 }) {
   const [promoCode, setPromoCode] = useState('');
   const [discountPercent, setDiscountPercent] = useState(0);
@@ -17,14 +18,17 @@ export default function CartDrawer({
 
   if (!isOpen) return null;
 
+  const targetPromo = storeSettings?.promoCode ? storeSettings.promoCode.trim().toUpperCase() : 'GREEN20';
+  const targetPct = Number(storeSettings?.promoDiscount) || 20;
+
   const handleApplyPromo = (e) => {
     e.preventDefault();
-    if (promoCode.trim().toUpperCase() === 'GREEN20') {
-      setDiscountPercent(20);
-      setPromoMessage('20% discount applied! 🌱');
+    if (promoCode.trim().toUpperCase() === targetPromo) {
+      setDiscountPercent(targetPct);
+      setPromoMessage(`${targetPct}% discount applied! 🌱`);
     } else {
       setDiscountPercent(0);
-      setPromoMessage('Invalid code. Use "GREEN20" for 20% off.');
+      setPromoMessage(`Invalid code. Use "${targetPromo}" for ${targetPct}% off.`);
     }
   };
 
