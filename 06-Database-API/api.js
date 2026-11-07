@@ -81,11 +81,6 @@ export const api = {
     return products;
   },
 
-  saveProducts: (products) => {
-    setStore(STORAGE_KEYS.PRODUCTS, products);
-    return products;
-  },
-
   resetProducts: () => {
     setStore(STORAGE_KEYS.PRODUCTS, initialProducts);
     return initialProducts;
