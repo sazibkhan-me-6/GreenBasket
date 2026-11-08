@@ -62,38 +62,44 @@ function App() {
     api.saveFavorites(favorites);
   }, [favorites]);
 
+  // Normalize catalog items to ensure valid prices, discounts, tags and images
+  const normalizeCatalog = (list) => {
+    if (!Array.isArray(list) || list.length === 0) return null;
+    return list.map((p) => {
+      const priceNum = Number(p.price) || 0;
+      let discountNum = null;
+      if (p.discount !== undefined && p.discount !== null && p.discount !== '') {
+        const dVal = Number(p.discount);
+        if (dVal > 0 && dVal < priceNum) discountNum = dVal;
+      } else if (p.discountPrice && Number(p.discountPrice) < priceNum) {
+        discountNum = Number(p.discountPrice);
+      }
+      return {
+        id: p.id,
+        name: p.name || 'Organic Product',
+        category: p.category || 'Vegetables',
+        unit: p.unit || '1 pack',
+        price: priceNum,
+        discountPrice: discountNum,
+        tag: p.tag || 'Fresh harvest',
+        image: p.image || photo('photo-1540420773420-3366772f4999', 500),
+        stock: Number(p.stock !== undefined ? p.stock : 20),
+        rating: p.rating || 4.9,
+        reviews: p.reviews || 25
+      };
+    });
+  };
+
   // Real-time synchronization with GreenBasket Admin Panel (greenbasket-admin-panel.vercel.app)
   useEffect(() => {
-    const normalizeCatalog = (list) => {
-      if (!Array.isArray(list) || list.length === 0) return null;
-      return list.map((p) => {
-        const priceNum = Number(p.price) || 0;
-        let discountNum = null;
-        if (p.discount !== undefined && p.discount !== null && p.discount !== '') {
-          const dVal = Number(p.discount);
-          if (dVal > 0 && dVal < priceNum) discountNum = dVal;
-        } else if (p.discountPrice && Number(p.discountPrice) < priceNum) {
-          discountNum = Number(p.discountPrice);
-        }
-        return {
-          id: p.id,
-          name: p.name || 'Organic Product',
-          category: p.category || 'Vegetables',
-          unit: p.unit || '1 pack',
-          price: priceNum,
-          discountPrice: discountNum,
-          tag: p.tag || 'Fresh harvest',
-          image: p.image || photo('photo-1540420773420-3366772f4999', 500),
-          stock: Number(p.stock) || 20,
-          rating: p.rating || 4.9,
-          reviews: p.reviews || 25
-        };
-      });
-    };
+    let lastCloudTimestamp = 0;
+    const GIST_RAW_URL = 'https://gist.githubusercontent.com/sazibkhan-me-6/5c3186e2427e5900031ae4ea398ac1e7/raw/greenbasket_catalog.json';
 
+    // 1. Direct postMessage handler (0ms instant live sync from Admin tab or window.opener)
     const handleMessage = (e) => {
       if (!e.data || typeof e.data !== 'object') return;
       if (e.data.type === 'GB_CATALOG_SYNC' || e.data.type === 'GB_PRODUCTS_UPDATED') {
+        lastCloudTimestamp = Date.now();
         const normalized = normalizeCatalog(e.data.products);
         if (normalized) {
           setProductsList(normalized);
@@ -108,6 +114,7 @@ function App() {
 
     window.addEventListener('message', handleMessage);
 
+    // 2. BroadcastChannel for same-origin tabs (0ms instant sync)
     let ch;
     try {
       ch = new BroadcastChannel('gb_bridge_channel');
@@ -118,8 +125,72 @@ function App() {
       };
     } catch (err) {}
 
+    // 3. URL Hash state bootstrapper (0ms instant load when opened from Admin)
+    const checkSyncHash = () => {
+      if (window.location.hash.startsWith('#sync=')) {
+        try {
+          const encoded = window.location.hash.slice(6);
+          const raw = decodeURIComponent(escape(atob(encoded)));
+          const data = JSON.parse(raw);
+          if (data.products && Array.isArray(data.products)) {
+            const normalized = normalizeCatalog(data.products);
+            if (normalized) {
+              setProductsList(normalized);
+              api.saveProducts(normalized);
+            }
+          }
+          if (data.settings) {
+            setStoreSettings(data.settings);
+            try { localStorage.setItem('gb_store_settings', JSON.stringify(data.settings)); } catch (err) {}
+          }
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        } catch (err) {
+          console.warn('Sync hash decode notice:', err);
+        }
+      }
+    };
+    checkSyncHash();
+    window.addEventListener('hashchange', checkSyncHash);
+
+    // 4. Signal ready to admin opener if available
+    try {
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage({ type: 'GB_STOREFRONT_READY' }, '*');
+      }
+    } catch (err) {}
+
+    // 5. Background Cloud Gist sync & polling (1-2s universal cloud sync across all devices)
+    const fetchCloudCatalog = async () => {
+      try {
+        const res = await fetch(`${GIST_RAW_URL}?_t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data || !Array.isArray(data.products) || data.products.length === 0) return;
+        const cloudTime = new Date(data.updatedAt || 0).getTime();
+        if (cloudTime > lastCloudTimestamp) {
+          lastCloudTimestamp = cloudTime;
+          const normalized = normalizeCatalog(data.products);
+          if (normalized) {
+            setProductsList(normalized);
+            api.saveProducts(normalized);
+          }
+          if (data.settings) {
+            setStoreSettings(data.settings);
+            try { localStorage.setItem('gb_store_settings', JSON.stringify(data.settings)); } catch (err) {}
+          }
+        }
+      } catch (err) {
+        // quiet fallback
+      }
+    };
+
+    fetchCloudCatalog();
+    const gistInterval = setInterval(fetchCloudCatalog, 2500);
+
     return () => {
       window.removeEventListener('message', handleMessage);
+      window.removeEventListener('hashchange', checkSyncHash);
+      clearInterval(gistInterval);
       if (ch) ch.close();
     };
   }, []);
@@ -218,6 +289,9 @@ function App() {
       };
 
       bridgeIframeRef.current?.contentWindow?.postMessage(orderPayload, '*');
+      if (window.opener && !window.opener.closed) {
+        try { window.opener.postMessage(orderPayload, '*'); } catch (err) {}
+      }
       const ch = new BroadcastChannel('gb_bridge_channel');
       ch.postMessage(orderPayload);
       ch.close();
