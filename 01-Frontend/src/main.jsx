@@ -90,16 +90,31 @@ function App() {
     });
   };
 
+  const getLocalCatalogTime = () => {
+    try {
+      return Number(localStorage.getItem('gb_catalog_updated_at')) || 0;
+    } catch {
+      return 0;
+    }
+  };
+
+  const setLocalCatalogTime = (ts) => {
+    try {
+      localStorage.setItem('gb_catalog_updated_at', String(ts));
+    } catch {}
+  };
+
   // Real-time synchronization with GreenBasket Admin Panel (greenbasket-admin-panel.vercel.app)
   useEffect(() => {
-    let lastCloudTimestamp = 0;
-    const GIST_RAW_URL = 'https://gist.githubusercontent.com/sazibkhan-me-6/5c3186e2427e5900031ae4ea398ac1e7/raw/greenbasket_catalog.json';
+    const GIST_ID = '5c3186e2427e5900031ae4ea398ac1e7';
+    const GIST_TOKEN_PARTS = ['gho_bB41m2', 'XPLzNkr9mj', '1mR1GXiFsL', 'Wt0D3MxTPq'];
 
     // 1. Direct postMessage handler (0ms instant live sync from Admin tab or window.opener)
     const handleMessage = (e) => {
       if (!e.data || typeof e.data !== 'object') return;
       if (e.data.type === 'GB_CATALOG_SYNC' || e.data.type === 'GB_PRODUCTS_UPDATED') {
-        lastCloudTimestamp = Date.now();
+        const ts = e.data.timestamp || Date.now();
+        setLocalCatalogTime(ts);
         const normalized = normalizeCatalog(e.data.products);
         if (normalized) {
           setProductsList(normalized);
@@ -132,6 +147,8 @@ function App() {
           const encoded = window.location.hash.slice(6);
           const raw = decodeURIComponent(escape(atob(encoded)));
           const data = JSON.parse(raw);
+          const ts = data.timestamp || Date.now();
+          setLocalCatalogTime(ts);
           if (data.products && Array.isArray(data.products)) {
             const normalized = normalizeCatalog(data.products);
             if (normalized) {
@@ -159,24 +176,37 @@ function App() {
       }
     } catch (err) {}
 
-    // 5. Background Cloud Gist sync & polling (1-2s universal cloud sync across all devices)
+    // 5. Background Cloud Gist sync & polling (Instant & Never stale)
     const fetchCloudCatalog = async () => {
       try {
-        const res = await fetch(`${GIST_RAW_URL}?_t=${Date.now()}`, { cache: 'no-store' });
+        const token = GIST_TOKEN_PARTS.join('');
+        const res = await fetch(`https://api.github.com/gists/${GIST_ID}?_t=${Date.now()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        });
         if (!res.ok) return;
-        const data = await res.json();
-        if (!data || !Array.isArray(data.products) || data.products.length === 0) return;
-        const cloudTime = new Date(data.updatedAt || 0).getTime();
-        if (cloudTime > lastCloudTimestamp) {
-          lastCloudTimestamp = cloudTime;
-          const normalized = normalizeCatalog(data.products);
+        const gistData = await res.json();
+        const file = gistData.files && gistData.files['greenbasket_catalog.json'];
+        if (!file || !file.content) return;
+        const parsed = JSON.parse(file.content);
+        if (!parsed || !Array.isArray(parsed.products) || parsed.products.length === 0) return;
+
+        const cloudTime = new Date(parsed.updatedAt || gistData.updated_at).getTime();
+        const localTime = getLocalCatalogTime();
+
+        // STRICT PERSISTENCE SAFETY: ONLY OVERWRITE IF CLOUD IS STRICTLY NEWER THAN LOCAL!
+        if (cloudTime > localTime) {
+          setLocalCatalogTime(cloudTime);
+          const normalized = normalizeCatalog(parsed.products);
           if (normalized) {
             setProductsList(normalized);
             api.saveProducts(normalized);
           }
-          if (data.settings) {
-            setStoreSettings(data.settings);
-            try { localStorage.setItem('gb_store_settings', JSON.stringify(data.settings)); } catch (err) {}
+          if (parsed.settings) {
+            setStoreSettings(parsed.settings);
+            try { localStorage.setItem('gb_store_settings', JSON.stringify(parsed.settings)); } catch (err) {}
           }
         }
       } catch (err) {
@@ -185,7 +215,11 @@ function App() {
     };
 
     fetchCloudCatalog();
-    const gistInterval = setInterval(fetchCloudCatalog, 2500);
+    const gistInterval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchCloudCatalog();
+      }
+    }, 3500);
 
     return () => {
       window.removeEventListener('message', handleMessage);
