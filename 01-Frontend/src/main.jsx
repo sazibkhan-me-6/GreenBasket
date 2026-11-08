@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   Leaf, Truck, Headphones, Search, UserRound, ShoppingCart, ArrowRight,
   ShieldCheck, Sprout, Heart, Menu, X, Star, CheckCircle2, Mail, Instagram,
-  Facebook, Youtube, Plus, Minus, ArrowUp, Sparkles, Eye
+  Facebook, Youtube, Plus, Minus
 } from 'lucide-react';
 import './styles.css';
 
@@ -13,7 +13,6 @@ import { api } from '@api/api.js';
 import CartDrawer from '@cart/CartDrawer.jsx';
 import AuthModal from '@auth/AuthModal.jsx';
 import CheckoutModal from '@payment/CheckoutModal.jsx';
-import ProductDetailModal from '@products/ProductDetailModal.jsx';
 
 const photo = (id, w = 700) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&q=85`;
 
@@ -26,23 +25,15 @@ function App() {
 
   // UI state
   const [activeCategory, setActiveCategory] = useState('All');
-  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [quickViewProduct, setQuickViewProduct] = useState(null);
-  const [showScrollTop, setShowScrollTop] = useState(false);
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
   const [notice, setNotice] = useState('');
-
-  // Shared Promo Code State for Cart & Checkout
-  const [appliedDiscount, setAppliedDiscount] = useState(0);
-  const [appliedPromoCode, setAppliedPromoCode] = useState('');
-
   const [storeSettings, setStoreSettings] = useState(() => {
     try {
       const saved = localStorage.getItem('gb_store_settings');
@@ -70,15 +61,6 @@ function App() {
   useEffect(() => {
     api.saveFavorites(favorites);
   }, [favorites]);
-
-  // Floating Back to Top Button Listener
-  useEffect(() => {
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 380);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   // Normalize catalog items to ensure valid prices, discounts, tags and images
   const normalizeCatalog = (list) => {
@@ -243,33 +225,21 @@ function App() {
   const cartCount = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
   const cartTotal = productsList.reduce((sum, p) => sum + getProductPrice(p) * (cart[p.id] || 0), 0);
 
-  // Dynamic list of category names based on catalog
-  const dynamicCategories = useMemo(() => {
-    const baseList = categories.map(c => c.name);
-    const catalogList = productsList.map(p => p.category).filter(Boolean);
-    return Array.from(new Set([...baseList, ...catalogList]));
-  }, [productsList]);
-
-  // Filtered products list
   const shownProducts = useMemo(() => {
-    return productsList.filter(p => {
-      const matchesCategory = activeCategory === 'All' || p.category === activeCategory;
-      const q = search.trim().toLowerCase();
-      const matchesSearch = !q || p.name.toLowerCase().includes(q) || (p.tag && p.tag.toLowerCase().includes(q)) || p.category.toLowerCase().includes(q);
-      const matchesFavorites = !showOnlyFavorites || favorites.includes(p.id);
-      return matchesCategory && matchesSearch && matchesFavorites;
-    });
-  }, [productsList, activeCategory, search, showOnlyFavorites, favorites]);
+    return productsList.filter(p =>
+      (activeCategory === 'All' || p.category === activeCategory) &&
+      p.name.toLowerCase().includes(search.toLowerCase())
+    );
+  }, [productsList, activeCategory, search]);
 
   const showToast = (msg) => {
     setNotice(msg);
-    setTimeout(() => setNotice(''), 2400);
+    setTimeout(() => setNotice(''), 2200);
   };
 
   const addToCart = (id) => {
-    const target = productsList.find(p => p.id === id);
     setCart(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
-    showToast(target ? `Added "${target.name}" to basket 🌱` : 'Added to your basket');
+    showToast('Added to your basket');
   };
 
   const changeQty = (id, amount) => {
@@ -281,11 +251,8 @@ function App() {
   };
 
   const toggleFavorite = (id) => {
-    const target = productsList.find(p => p.id === id);
     setFavorites(prev => {
-      const isAlready = prev.includes(id);
-      const updated = isAlready ? prev.filter(x => x !== id) : [...prev, id];
-      showToast(isAlready ? `Removed "${target?.name}" from favorites` : `Saved "${target?.name}" to favorites ❤️`);
+      const updated = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
       return updated;
     });
   };
@@ -293,7 +260,7 @@ function App() {
   const handleLoginSuccess = (userEmail, password, role) => {
     const user = api.login(userEmail, password, role);
     setCurrentUser(user);
-    showToast(`Welcome, ${user.name}! 🌱`);
+    showToast(`Signed in as ${user.name}`);
   };
 
   const handleLogout = () => {
@@ -305,9 +272,7 @@ function App() {
   const handleOrderCompleted = (orderData) => {
     const newOrder = api.createOrder(orderData);
     setCart({});
-    setAppliedDiscount(0);
-    setAppliedPromoCode('');
-    showToast(`Order #${newOrder.id} placed successfully!`);
+    showToast(`Order #${newOrder.id} confirmed!`);
 
     // Forward new order to the dedicated Admin Panel (greenbasket-admin-panel.vercel.app)
     try {
@@ -344,14 +309,14 @@ function App() {
         <div className="top-inner">
           <span><Truck size={14}/> {storeSettings.announcement || 'FREE DELIVERY on orders over $49'}</span>
           <span><Sprout size={14}/> Eat Fresh, Live Healthy</span>
-          <span><Headphones size={14}/> 24/7 Customer Support</span>
+          <span><Headphones size={14}/> Support 24/7</span>
         </div>
       </div>
 
       {/* Main Header */}
       <header className="header">
         <a href="#home" className="brand" aria-label="GreenBasket home">
-          <span className="brand-mark"><ShoppingCart size={28}/><Leaf size={15}/></span>
+          <span className="brand-mark"><ShoppingCart size={29}/><Leaf size={16}/></span>
           <span><b>Green<span>Basket</span></b><small>Fresh from Nature</small></span>
         </a>
 
@@ -360,41 +325,26 @@ function App() {
           onClick={() => setMenuOpen(!menuOpen)} 
           aria-label="Toggle menu"
         >
-          {menuOpen ? <X size={22}/> : <Menu size={22}/>}
+          {menuOpen ? <X/> : <Menu/>}
         </button>
 
         <nav className={menuOpen ? 'nav nav-open' : 'nav'}>
           {['Home', 'Shop', 'Categories', 'Deals', 'About Us', 'Contact'].map((item, i) =>
             <a 
               key={item} 
-              className={i === 0 && !showOnlyFavorites ? 'active' : ''} 
+              className={i === 0 ? 'active' : ''} 
               href={['#home', '#products', '#categories', '#deals', '#about', '#contact'][i]} 
-              onClick={() => {
-                setShowOnlyFavorites(false);
-                setMenuOpen(false);
-              }}
+              onClick={() => setMenuOpen(false)}
             >
               {item}
             </a>
           )}
-          {/* Mobile Account Link */}
-          <a 
-            href="#account" 
-            className="mobile-account-link"
-            onClick={(e) => {
-              e.preventDefault();
-              setMenuOpen(false);
-              setAuthOpen(true);
-            }}
-          >
-            {currentUser ? `Account (${currentUser.name})` : 'Sign In / Register'}
-          </a>
         </nav>
 
         <div className="header-actions">
           {/* Search Trigger */}
           <button className="icon-btn" aria-label="Search" onClick={() => setSearchOpen(!searchOpen)}>
-            <Search size={20}/>
+            <Search/>
           </button>
 
           {/* User Account / Profile */}
@@ -405,14 +355,14 @@ function App() {
             title={currentUser ? currentUser.name : "Account"}
             style={{ position: 'relative' }}
           >
-            <UserRound size={20}/>
+            <UserRound/>
             {currentUser && (
               <span style={{ 
                 position: 'absolute', 
-                top: '4px', 
-                right: '4px', 
-                width: '8px', 
-                height: '8px', 
+                top: '2px', 
+                right: '2px', 
+                width: '7px', 
+                height: '7px', 
                 borderRadius: '50%', 
                 background: 'var(--lime)',
                 boxShadow: '0 0 6px var(--lime)'
@@ -422,7 +372,7 @@ function App() {
 
           {/* Cart Icon with badge */}
           <button className="icon-btn cart-trigger" aria-label="Open basket" onClick={() => setCartOpen(true)}>
-            <ShoppingCart size={20}/>
+            <ShoppingCart/>
             {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
           </button>
         </div>
@@ -433,15 +383,14 @@ function App() {
             <Search size={18}/>
             <input 
               autoFocus 
-              placeholder="Search organic vegetables, fruits, berries, herbs..." 
+              placeholder="Search fresh vegetables, fruits..." 
               value={search} 
               onChange={e => {
                 setSearch(e.target.value); 
-                setShowOnlyFavorites(false);
                 document.querySelector('#products')?.scrollIntoView({ behavior: 'smooth' });
               }}
             />
-            <button onClick={() => { setSearch(''); setSearchOpen(false); }} aria-label="Close search">
+            <button onClick={() => { setSearch(''); setSearchOpen(false); }}>
               <X size={18}/>
             </button>
           </div>
@@ -453,22 +402,20 @@ function App() {
         {/* Hero Section */}
         <section className="hero section-wrap" id="home">
           <div className="hero-copy">
-            <div className="eyebrow"><span className="eyebrow-dot"></span> 100% CERTIFIED ORGANIC & FRESH</div>
+            <div className="eyebrow"><span className="eyebrow-dot"></span> 100% ORGANIC & FRESH</div>
             <h1>Fresh Food.<br/>Healthy Life.<br/><em>Happy You.</em></h1>
-            <p>Direct from pesticide-free partner farms to your kitchen table within 24 hours. Eat pure, live healthy.</p>
-            <a className="btn btn-primary" href="#products" onClick={() => { setActiveCategory('All'); setShowOnlyFavorites(false); }}>
-              Shop Fresh Harvest <ArrowRight size={18}/>
-            </a>
+            <p>Organic fruits, vegetables & greens<br className="desktop-break"/> delivered directly from farm to your door within 24h.</p>
+            <a className="btn btn-primary" href="#products">Shop Now <ArrowRight size={18}/></a>
             <div className="hero-perks">
-              <div><span className="perk-icon"><Leaf size={15}/></span><span><b>100% Organic</b><small>Certified produce</small></span></div>
-              <div><span className="perk-icon"><Truck size={15}/></span><span><b>Fast Delivery</b><small>Free over $49</small></span></div>
-              <div><span className="perk-icon"><ShieldCheck size={15}/></span><span><b>Safe Checkout</b><small>100% Protected</small></span></div>
+              <div><span className="perk-icon"><Leaf/></span><span><b>100% Organic</b><small>Certified produce</small></span></div>
+              <div><span className="perk-icon"><Truck/></span><span><b>Fast Delivery</b><small>Same day free</small></span></div>
+              <div><span className="perk-icon"><ShieldCheck/></span><span><b>Secure Checkout</b><small>Safe payments</small></span></div>
             </div>
           </div>
           <div className="hero-art">
             <div className="hero-glow"></div>
             <img src={photo('photo-1540420773420-3366772f4999', 1100)} alt="A colorful basket of fresh vegetables"/>
-            <div className="fresh-stamp"><span>EAT FRESH</span><b>STAY<br/>HEALTHY</b><Leaf size={16}/></div>
+            <div className="fresh-stamp"><span>EAT FRESH</span><b>STAY<br/>HEALTHY</b><Leaf size={17}/></div>
             <span className="floating-leaf leaf-one">✦</span><span className="floating-leaf leaf-two">✦</span>
           </div>
         </section>
@@ -479,15 +426,13 @@ function App() {
           <div className="farm-copy">
             <span className="kicker">WELCOME TO GREENBASKET</span>
             <h2>From Our Farm<br/>To <em>Your Table</em></h2>
-            <p>We work directly with certified local organic farmers to bring you pure, non-GMO, chemical-free food every morning.</p>
-            <a href="#products" className="text-link" onClick={() => { setActiveCategory('All'); setShowOnlyFavorites(false); }}>
-              Explore Fresh Harvest <ArrowRight size={16}/>
-            </a>
+            <p>We bring you the freshest, handpicked produce from trusted local growers. Certified quality you can trust, every single day.</p>
+            <a href="#products" className="text-link">Explore Fresh Harvest <ArrowRight size={16}/></a>
           </div>
           <div className="farm-stats">
-            <div><span className="stat-icon"><Sprout size={16}/></span><p><b>25+</b><small>Partner Farms</small></p></div>
-            <div><span className="stat-icon"><Leaf size={16}/></span><p><b>500+</b><small>Organic Items</small></p></div>
-            <div><span className="stat-icon"><Heart size={16}/></span><p><b>10K+</b><small>Happy Homes</small></p></div>
+            <div><span className="stat-icon"><Sprout/></span><p><b>25+</b><small>Local Partner Farms</small></p></div>
+            <div><span className="stat-icon"><Leaf/></span><p><b>500+</b><small>Organic Items</small></p></div>
+            <div><span className="stat-icon"><Heart/></span><p><b>10K+</b><small>Happy Customers</small></p></div>
           </div>
         </section>
 
@@ -495,31 +440,21 @@ function App() {
         <section className="section-wrap section-block" id="categories">
           <div className="section-heading">
             <div><span className="heading-leaf">✦</span><h2>Shop by Category</h2></div>
-            <a href="#products" onClick={() => { setActiveCategory('All'); setShowOnlyFavorites(false); }}>
-              View all ({productsList.length}) <ArrowRight size={16}/>
-            </a>
+            <a href="#products" onClick={() => setActiveCategory('All')}>View all <ArrowRight size={16}/></a>
           </div>
           <div className="category-grid">
             {categories.map(cat => (
               <button 
-                className={'category-card ' + (activeCategory === cat.name && !showOnlyFavorites ? 'category-active' : '')} 
+                className={'category-card ' + (activeCategory === cat.name ? 'category-active' : '')} 
                 key={cat.name} 
                 onClick={() => {
                   setActiveCategory(activeCategory === cat.name ? 'All' : cat.name);
-                  setShowOnlyFavorites(false);
                   document.querySelector('#products')?.scrollIntoView({ behavior: 'smooth' });
                 }}
               >
-                <img 
-                  src={cat.image} 
-                  alt={cat.name}
-                  onError={(e) => {
-                    e.currentTarget.onerror = null;
-                    e.currentTarget.src = photo('photo-1540420773420-3366772f4999', 400);
-                  }}
-                />
+                <img src={cat.image} alt={cat.name}/>
                 <b>{cat.name}</b>
-                <small>{productsList.filter(p => p.category === cat.name).length || cat.count} items</small>
+                <small>{cat.count}</small>
               </button>
             ))}
           </div>
@@ -528,12 +463,10 @@ function App() {
         {/* Promotional Deal Banner */}
         <section className="deal-banner section-wrap" id="deals">
           <div className="deal-copy">
-            <span>LIMITED TIME PROMO</span>
+            <span>LIMITED TIME OFFER</span>
             <h2>UP TO <em>30% OFF</em></h2>
-            <h3>On Fresh Seasonal Vegetables & Fruits</h3>
-            <a href="#products" className="btn btn-yellow" onClick={() => { setActiveCategory('Vegetables'); setShowOnlyFavorites(false); }}>
-              Grab Deal Now <ArrowRight size={16}/>
-            </a>
+            <h3>On Fresh Seasonal Vegetables</h3>
+            <a href="#products" className="btn btn-yellow">Grab the Deal <ArrowRight size={16}/></a>
           </div>
           <div className="deal-image"><img src={photo('photo-1518843875459-f738682238a6', 900)} alt="Fresh seasonal vegetables"/></div>
           <div className="deal-seal"><span>Best Quality</span><b>Best Price</b></div>
@@ -543,10 +476,10 @@ function App() {
         <section className="section-wrap section-block why-block">
           <div className="section-heading"><div><span className="heading-leaf">✦</span><h2>Why Choose GreenBasket?</h2></div></div>
           <div className="benefit-grid">
-            <div className="benefit"><Sprout size={24}/><span><b>Farm Fresh</b><small>Handpicked daily with utmost care</small></span></div>
-            <div className="benefit"><CheckCircle2 size={24}/><span><b>100% Chemical Free</b><small>Pure and safe for whole family</small></span></div>
-            <div className="benefit"><Leaf size={24}/><span><b>Sustainably Grown</b><small>Protects soil ecology and water</small></span></div>
-            <div className="benefit"><ShieldCheck size={24}/><span><b>Freshness Guarantee</b><small>100% money back if not satisfied</small></span></div>
+            <div className="benefit"><Sprout/><span><b>Farm Fresh</b><small>Handpicked daily with care</small></span></div>
+            <div className="benefit"><CheckCircle2/><span><b>100% Chemical Free</b><small>Safe for family & kids</small></span></div>
+            <div className="benefit"><Leaf/><span><b>Sustainably Grown</b><small>Protects natural ecology</small></span></div>
+            <div className="benefit"><ShieldCheck/><span><b>Money-Back Quality</b><small>Guaranteed freshness</small></span></div>
           </div>
         </section>
 
@@ -555,106 +488,59 @@ function App() {
           <div className="section-heading">
             <div>
               <span className="heading-leaf">✦</span>
-              <h2>
-                {showOnlyFavorites 
-                  ? 'Your Saved Favorites' 
-                  : (activeCategory === 'All' ? 'Farm Fresh Produce' : activeCategory)}
-              </h2>
+              <h2>{activeCategory === 'All' ? 'Farm Fresh Produce' : activeCategory}</h2>
             </div>
-            {search && (
-              <span className="search-active-pill">
-                Filtered by "{search}" ({shownProducts.length})
-                <button onClick={() => setSearch('')} title="Clear search"><X size={13}/></button>
-              </span>
-            )}
-            <a href="#products" onClick={() => { setActiveCategory('All'); setShowOnlyFavorites(false); setSearch(''); }}>
-              View all ({productsList.length}) <ArrowRight size={16}/>
-            </a>
+            <a href="#products" onClick={() => setActiveCategory('All')}>View all ({productsList.length}) <ArrowRight size={16}/></a>
           </div>
 
-          {/* Dynamic Filter Pills */}
           <div className="filter-row">
             <button 
-              className={activeCategory === 'All' && !showOnlyFavorites ? 'filter active-filter' : 'filter'} 
-              onClick={() => { setActiveCategory('All'); setShowOnlyFavorites(false); }}
+              className={activeCategory === 'All' ? 'filter active-filter' : 'filter'} 
+              onClick={() => setActiveCategory('All')}
             >
-              All items ({productsList.length})
+              All products ({productsList.length})
             </button>
-
-            {dynamicCategories.filter(c => c !== 'All').map(cat => (
+            {categories.map(c => (
               <button 
-                key={cat} 
-                className={activeCategory === cat && !showOnlyFavorites ? 'filter active-filter' : 'filter'} 
-                onClick={() => { setActiveCategory(cat); setShowOnlyFavorites(false); }}
+                key={c.name} 
+                className={activeCategory === c.name ? 'filter active-filter' : 'filter'} 
+                onClick={() => setActiveCategory(c.name)}
               >
-                {cat} ({productsList.filter(p => p.category === cat).length})
+                {c.name}
               </button>
             ))}
-
-            {/* Wishlist Pill */}
-            <button 
-              className={'filter wishlist-pill ' + (showOnlyFavorites ? 'active-filter' : '')} 
-              onClick={() => setShowOnlyFavorites(!showOnlyFavorites)}
-            >
-              <Heart size={14} fill={showOnlyFavorites ? 'currentColor' : 'none'}/> 
-              Wishlist ({favorites.length})
-            </button>
           </div>
 
           {shownProducts.length ? (
             <div className="product-grid">
               {shownProducts.map(p => {
                 const hasDiscount = p.discountPrice && Number(p.discountPrice) > 0 && Number(p.discountPrice) < Number(p.price);
-                const discountPct = hasDiscount ? Math.round((1 - p.discountPrice / p.price) * 100) : 0;
-                const inCartQty = cart[p.id] || 0;
-                const isFav = favorites.includes(p.id);
-
                 return (
                   <article className="product-card" key={p.id}>
-                    <div className="product-image" onClick={() => setQuickViewProduct(p)} style={{ cursor: 'pointer' }}>
-                      <img 
-                        src={p.image} 
-                        alt={p.name}
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = photo('photo-1540420773420-3366772f4999', 500);
-                        }}
-                      />
+                    <div className="product-image">
+                      <img src={p.image} alt={p.name}/>
                       {hasDiscount ? (
-                        <span className="product-tag discount-tag">
-                          -{discountPct}% OFF
+                        <span className="product-tag" style={{ background: '#e11d48', color: '#fff', fontWeight: 800 }}>
+                          -{Math.round((1 - p.discountPrice / p.price) * 100)}% OFF
                         </span>
                       ) : (
                         <span className="product-tag">{p.tag || 'Organic'}</span>
                       )}
-
                       <button 
-                        className={'heart-btn ' + (isFav ? 'hearted' : '')} 
+                        className={'heart-btn ' + (favorites.includes(p.id) ? 'hearted' : '')} 
                         aria-label="Toggle favorite" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleFavorite(p.id);
-                        }}
+                        onClick={() => toggleFavorite(p.id)}
                       >
-                        <Heart size={16} fill={isFav ? 'currentColor' : 'none'}/>
+                        <Heart size={17} fill={favorites.includes(p.id) ? 'currentColor' : 'none'}/>
                       </button>
-
-                      <span className="quick-view-badge" title="Quick view">
-                        <Eye size={13}/> Quick View
-                      </span>
                     </div>
-
                     <div className="product-info">
                       <div className="rating">
-                        <Star size={12} fill="#eab308" color="#eab308"/> {p.rating || 4.9} 
-                        <span>({p.reviews || 24})</span>
+                        <Star size={12} fill="currentColor"/> {p.rating || 4.9} 
+                        <span>({p.reviews || 24} reviews)</span>
                       </div>
-
-                      <h3 onClick={() => setQuickViewProduct(p)} style={{ cursor: 'pointer' }}>
-                        {p.name}
-                      </h3>
+                      <h3>{p.name}</h3>
                       <small>{p.unit}</small>
-
                       <div className="product-bottom">
                         <div>
                           {hasDiscount ? (
@@ -672,35 +558,13 @@ function App() {
                             </>
                           )}
                         </div>
-
-                        {/* In-Card Stepper / Add to Cart Button */}
-                        {inCartQty > 0 ? (
-                          <div className="card-qty-stepper">
-                            <button 
-                              type="button" 
-                              onClick={() => changeQty(p.id, -1)} 
-                              aria-label="Decrease quantity"
-                            >
-                              <Minus size={13}/>
-                            </button>
-                            <span className="qty-number">{inCartQty}</span>
-                            <button 
-                              type="button" 
-                              onClick={() => changeQty(p.id, 1)} 
-                              aria-label="Increase quantity"
-                            >
-                              <Plus size={13}/>
-                            </button>
-                          </div>
-                        ) : (
-                          <button 
-                            className="add-btn" 
-                            onClick={() => addToCart(p.id)}
-                            disabled={p.stock <= 0}
-                          >
-                            <Plus size={15}/> Add to Cart
-                          </button>
-                        )}
+                        <button className="add-btn" onClick={() => addToCart(p.id)}>
+                          {cart[p.id] ? (
+                            <><CheckCircle2 size={15}/> Added ({cart[p.id]})</>
+                          ) : (
+                            <><Plus size={16}/> Add to Cart</>
+                          )}
+                        </button>
                       </div>
                     </div>
                   </article>
@@ -708,31 +572,16 @@ function App() {
               })}
             </div>
           ) : (
-            <div className="empty-state">
-              <Sprout size={36} color="var(--lime)"/>
-              <h3>No items found</h3>
-              <p>
-                {showOnlyFavorites 
-                  ? "You haven't added any favorites yet. Tap the ❤️ on any produce to save it to your wishlist!"
-                  : "We couldn't find any products matching your search. Try adjusting keywords or category."}
-              </p>
-              <button 
-                type="button" 
-                className="btn btn-primary"
-                onClick={() => { setActiveCategory('All'); setShowOnlyFavorites(false); setSearch(''); }}
-              >
-                Browse All Fresh Harvest
-              </button>
-            </div>
+            <div className="empty-state">No products found. Try another search.</div>
           )}
         </section>
 
         {/* Newsletter Section */}
         <section className="newsletter section-wrap">
-          <div className="newsletter-icon"><Mail size={22}/></div>
+          <div className="newsletter-icon"><Mail/></div>
           <div className="newsletter-copy">
             <h3>Stay Healthy, Stay Updated!</h3>
-            <p>Subscribe to receive seasonal recipes, secret discount coupons & fresh harvest alerts.</p>
+            <p>Subscribe to get best offers, health tips &<br/> fresh updates in your inbox.</p>
           </div>
           <form 
             className="subscribe-form" 
@@ -741,7 +590,7 @@ function App() {
               if (email.includes('@')) {
                 setSubscribed(true);
                 setEmail('');
-                showToast('Thank you! Subscribed to GreenBasket fresh updates 🌱');
+                showToast('Subscribed to GreenBasket updates! 🌱');
               } else {
                 showToast('Please enter a valid email address.');
               }
@@ -750,7 +599,7 @@ function App() {
             <input 
               type="email" 
               required 
-              placeholder="Enter your email address" 
+              placeholder="Enter your email" 
               value={email} 
               onChange={e => setEmail(e.target.value)}
             />
@@ -767,40 +616,38 @@ function App() {
             <span className="brand-mark"><ShoppingCart size={27}/><Leaf size={14}/></span>
             <span><b>Green<span>Basket</span></b><small>Fresh from Nature</small></span>
           </a>
-          <p>Your trusted daily source for certified organic fruits, vegetables, and farm fresh living.</p>
+          <p>Your trusted source for fresh, organic and healthy food. We care for you and the planet.</p>
           <div className="socials">
-            <a href="https://facebook.com" aria-label="Facebook" target="_blank" rel="noopener noreferrer"><Facebook size={18}/></a>
-            <a href="https://instagram.com" aria-label="Instagram" target="_blank" rel="noopener noreferrer"><Instagram size={18}/></a>
-            <a href="https://youtube.com" aria-label="YouTube" target="_blank" rel="noopener noreferrer"><Youtube size={18}/></a>
+            <a href="https://facebook.com" aria-label="Facebook"><Facebook/></a>
+            <a href="https://instagram.com" aria-label="Instagram"><Instagram/></a>
+            <a href="https://youtube.com" aria-label="YouTube"><Youtube/></a>
           </div>
         </div>
         <div className="footer-col">
           <h4>Quick Links</h4>
-          <a href="#products" onClick={() => { setActiveCategory('All'); setShowOnlyFavorites(false); }}>Shop All</a>
+          <a href="#products">Shop</a>
           <a href="#categories">Categories</a>
-          <a href="#deals">Special Deals</a>
-          <a href="#about">About Our Farm</a>
-          <a href="#contact">Contact Us</a>
+          <a href="#deals">Deals</a>
+          <a href="#about">About Us</a>
+          <a href="#contact">Contact</a>
         </div>
         <div className="footer-col">
           <h4>Customer Service</h4>
           <a href="#account" onClick={(e) => { e.preventDefault(); setAuthOpen(true); }}>
             My Account {currentUser ? `(${currentUser.name})` : ''}
           </a>
-          <a href="#products" onClick={(e) => { e.preventDefault(); setShowOnlyFavorites(true); document.querySelector('#products')?.scrollIntoView({ behavior: 'smooth' }); }}>
-            My Wishlist ({favorites.length})
-          </a>
-          <a href="#contact">Delivery Information</a>
-          <a href="#contact">Freshness Guarantee</a>
-          <a href="#contact">FAQs & Support</a>
+          <a href="#contact">Track Order</a>
+          <a href="#contact">Shipping & Delivery</a>
+          <a href="#contact">Returns & Refunds</a>
+          <a href="#contact">FAQs</a>
         </div>
         <div className="footer-col">
           <h4>Information</h4>
           <a href="#contact">Privacy Policy</a>
           <a href="#contact">Terms & Conditions</a>
-          <a href="#contact">Return Policy</a>
-          <a href="#contact">Sustainable Farming</a>
-          <a href="#contact">Contact: support@greenbasket.com</a>
+          <a href="#contact">Refund Policy</a>
+          <a href="#contact">Blog</a>
+          <a href="#contact">Careers</a>
         </div>
         <div className="footer-col payment-col">
           <h4>Payment Methods</h4>
@@ -808,49 +655,22 @@ function App() {
             <span>VISA</span>
             <span>PayPal</span>
             <span>Mastercard</span>
-            <span>bKash</span>
             <span>SSL SECURE</span>
           </div>
-          <p><ShieldCheck size={14}/> 100% Secure SSL encrypted checkout</p>
+          <p><ShieldCheck size={14}/> Secure checkout</p>
         </div>
         <div className="copyright">
-          © 2026 GreenBasket. All rights reserved. <span>Made with <Heart size={12} fill="currentColor" style={{ cursor: 'default' }} onClick={(e) => { if (e.detail === 3) window.open('https://greenbasket-admin-panel.vercel.app/', '_blank', 'noopener,noreferrer'); }}/> for fresh organic living.</span>
+          © 2026 GreenBasket. All rights reserved. <span>Made with <Heart size={12} fill="currentColor" style={{ cursor: 'default' }} onClick={(e) => { if (e.detail === 3) window.open('https://greenbasket-admin-panel.vercel.app/', '_blank', 'noopener,noreferrer'); }}/> for fresh living.</span>
         </div>
       </footer>
-
-      {/* Floating Back to Top Button */}
-      {showScrollTop && (
-        <button 
-          type="button" 
-          className="back-to-top"
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          aria-label="Back to top"
-          title="Back to top"
-        >
-          <ArrowUp size={20}/>
-        </button>
-      )}
 
       {/* Toast Notification */}
       {notice && (
         <div className="toast">
-          <CheckCircle2 size={17} color="#9ee038"/>
-          <span>{notice}</span>
+          <CheckCircle2 size={17}/>
+          {notice}
           <button onClick={() => setNotice('')} aria-label="Dismiss"><X size={15}/></button>
         </div>
-      )}
-
-      {/* Quick View Product Details Modal */}
-      {quickViewProduct && (
-        <ProductDetailModal
-          product={quickViewProduct}
-          onClose={() => setQuickViewProduct(null)}
-          cartQty={cart[quickViewProduct.id] || 0}
-          onAddToCart={addToCart}
-          onChangeQty={changeQty}
-          isFavorite={favorites.includes(quickViewProduct.id)}
-          onToggleFavorite={toggleFavorite}
-        />
       )}
 
       {/* Cart Drawer Component */}
@@ -864,10 +684,6 @@ function App() {
         onChangeQty={changeQty}
         onOpenCheckout={() => setCheckoutOpen(true)}
         storeSettings={storeSettings}
-        appliedDiscount={appliedDiscount}
-        setAppliedDiscount={setAppliedDiscount}
-        appliedPromoCode={appliedPromoCode}
-        setAppliedPromoCode={setAppliedPromoCode}
       />
 
       {/* Checkout & Payment Modal */}
@@ -878,8 +694,6 @@ function App() {
         products={productsList}
         cartTotal={cartTotal}
         onOrderCompleted={handleOrderCompleted}
-        appliedDiscount={appliedDiscount}
-        appliedPromoCode={appliedPromoCode}
       />
 
       {/* Authentication Modal */}
