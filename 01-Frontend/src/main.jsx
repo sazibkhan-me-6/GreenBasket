@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+﻿import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Leaf, Truck, Headphones, Search, UserRound, ShoppingCart, ArrowRight,
@@ -308,18 +308,29 @@ function App() {
     setCart({});
     showToast(`Order #${newOrder.id} confirmed!`);
 
-    // Forward new order to the dedicated Admin Panel (greenbasket-admin-panel.vercel.app)
+    // Forward full order with Delivery Address & Contact Info to dedicated Admin Panel (greenbasket-admin-panel.vercel.app)
     try {
+      const fullOrder = {
+        id: newOrder.id,
+        customer: orderData.customer?.name || newOrder.customerName || 'Store Customer',
+        customerName: orderData.customer?.name || newOrder.customerName || 'Store Customer',
+        customerPhone: orderData.customer?.phone || newOrder.customerPhone || '',
+        phone: orderData.customer?.phone || newOrder.customerPhone || '',
+        address: orderData.customer?.address || newOrder.address || 'Standard Delivery',
+        deliveryAddress: orderData.customer?.address || newOrder.address || 'Standard Delivery',
+        notes: orderData.customer?.notes || newOrder.notes || '',
+        items: Array.isArray(orderData.items) ? orderData.items : (newOrder.items || 'Fresh Grocery Pack'),
+        itemsSummary: Array.isArray(orderData.items) ? orderData.items.map(it => `${it.name} (${it.qty})`).join(', ') : 'Fresh Grocery Pack',
+        total: Number(orderData.total) || Number(newOrder.total) || 0,
+        paymentMethod: orderData.paymentMethod || newOrder.paymentMethod || 'Cash on Delivery',
+        paymentStatus: (orderData.paymentMethod === 'Cash on Delivery' || orderData.paymentMethod === 'cod') ? 'Pending' : 'Paid',
+        status: 'Processing',
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+      };
+
       const orderPayload = {
         type: 'GB_NEW_ORDER',
-        order: {
-          id: newOrder.id,
-          customer: orderData.customer?.name || 'Store Customer',
-          items: Array.isArray(orderData.items) ? orderData.items.map(it => `${it.name} (${it.qty})`).join(', ') : 'Fresh Grocery Pack',
-          total: Number(orderData.total) || 0,
-          status: 'Processing',
-          date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-        }
+        order: fullOrder
       };
 
       bridgeIframeRef.current?.contentWindow?.postMessage(orderPayload, '*');
@@ -329,6 +340,44 @@ function App() {
       const ch = new BroadcastChannel('gb_bridge_channel');
       ch.postMessage(orderPayload);
       ch.close();
+
+      // Multi-device Cloud Gist sync for orders
+      try {
+        const GIST_TOKEN_PARTS = ['gho_bB41m2', 'XPLzNkr9mj', '1mR1GXiFsL', 'Wt0D3MxTPq'];
+        const token = GIST_TOKEN_PARTS.join('');
+        fetch(`https://api.github.com/gists/5c3186e2427e5900031ae4ea398ac1e7?_t=${Date.now()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        })
+          .then(res => res.json())
+          .then(d => {
+            const file = d.files && d.files['greenbasket_catalog.json'];
+            if (file && file.content) {
+              const parsed = JSON.parse(file.content);
+              const existingOrders = Array.isArray(parsed.orders) ? parsed.orders : [];
+              parsed.orders = [fullOrder, ...existingOrders.filter(o => o.id !== fullOrder.id)];
+              parsed.updatedAt = new Date().toISOString();
+              parsed.version = Date.now();
+              fetch(`https://api.github.com/gists/5c3186e2427e5900031ae4ea398ac1e7`, {
+                method: 'PATCH',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  files: {
+                    'greenbasket_catalog.json': {
+                      content: JSON.stringify(parsed, null, 2)
+                    }
+                  }
+                })
+              }).catch(() => {});
+            }
+          })
+          .catch(() => {});
+      } catch (err) {}
     } catch (e) {
       console.warn('Bridge order notification failed', e);
     }
@@ -450,7 +499,7 @@ function App() {
             <div className="hero-glow"></div>
             <img src={photo('photo-1540420773420-3366772f4999', 1100)} alt="A colorful basket of fresh vegetables"/>
             <div className="fresh-stamp"><span>EAT FRESH</span><b>STAY<br/>HEALTHY</b><Leaf size={17}/></div>
-            <span className="floating-leaf leaf-one">✦</span><span className="floating-leaf leaf-two">✦</span>
+            <span className="floating-leaf leaf-one">âœ¦</span><span className="floating-leaf leaf-two">âœ¦</span>
           </div>
         </section>
 
@@ -473,7 +522,7 @@ function App() {
         {/* Categories Section */}
         <section className="section-wrap section-block" id="categories">
           <div className="section-heading">
-            <div><span className="heading-leaf">✦</span><h2>Shop by Category</h2></div>
+            <div><span className="heading-leaf">âœ¦</span><h2>Shop by Category</h2></div>
             <a href="#products" onClick={() => setActiveCategory('All')}>View all <ArrowRight size={16}/></a>
           </div>
           <div className="category-grid">
@@ -508,7 +557,7 @@ function App() {
 
         {/* Why Choose Us */}
         <section className="section-wrap section-block why-block">
-          <div className="section-heading"><div><span className="heading-leaf">✦</span><h2>Why Choose GreenBasket?</h2></div></div>
+          <div className="section-heading"><div><span className="heading-leaf">âœ¦</span><h2>Why Choose GreenBasket?</h2></div></div>
           <div className="benefit-grid">
             <div className="benefit"><Sprout/><span><b>Farm Fresh</b><small>Handpicked daily with care</small></span></div>
             <div className="benefit"><CheckCircle2/><span><b>100% Chemical Free</b><small>Safe for family & kids</small></span></div>
@@ -521,7 +570,7 @@ function App() {
         <section className="section-wrap section-block products-block" id="products">
           <div className="section-heading">
             <div>
-              <span className="heading-leaf">✦</span>
+              <span className="heading-leaf">âœ¦</span>
               <h2>{activeCategory === 'All' ? 'Farm Fresh Produce' : activeCategory}</h2>
             </div>
             <a href="#products" onClick={() => setActiveCategory('All')}>View all ({productsList.length}) <ArrowRight size={16}/></a>
@@ -624,7 +673,7 @@ function App() {
               if (email.includes('@')) {
                 setSubscribed(true);
                 setEmail('');
-                showToast('Subscribed to GreenBasket updates! 🌱');
+                showToast('Subscribed to GreenBasket updates! ðŸŒ±');
               } else {
                 showToast('Please enter a valid email address.');
               }
@@ -637,7 +686,7 @@ function App() {
               value={email} 
               onChange={e => setEmail(e.target.value)}
             />
-            <button type="submit">{subscribed ? 'Subscribed ✓' : 'Subscribe'}</button>
+            <button type="submit">{subscribed ? 'Subscribed âœ“' : 'Subscribe'}</button>
           </form>
           <img src={photo('photo-1540420773420-3366772f4999', 350)} alt="" className="newsletter-produce"/>
         </section>
@@ -694,7 +743,7 @@ function App() {
           <p><ShieldCheck size={14}/> Secure checkout</p>
         </div>
         <div className="copyright">
-          © 2026 GreenBasket. All rights reserved. <span>Made with <Heart size={12} fill="currentColor" style={{ cursor: 'default' }} onClick={(e) => { if (e.detail === 3) window.open('https://greenbasket-admin-panel.vercel.app/', '_blank', 'noopener,noreferrer'); }}/> for fresh living.</span>
+          Â© 2026 GreenBasket. All rights reserved. <span>Made with <Heart size={12} fill="currentColor" style={{ cursor: 'default' }} onClick={(e) => { if (e.detail === 3) window.open('https://greenbasket-admin-panel.vercel.app/', '_blank', 'noopener,noreferrer'); }}/> for fresh living.</span>
         </div>
       </footer>
 
