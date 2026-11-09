@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   Leaf, Truck, Headphones, Search, UserRound, ShoppingCart, ArrowRight,
   ShieldCheck, Sprout, Heart, Menu, X, Star, CheckCircle2, Mail, Instagram,
-  Facebook, Youtube, Plus, Minus
+  Facebook, Youtube, Plus, Minus, Package
 } from 'lucide-react';
 import './styles.css';
 
@@ -14,7 +14,30 @@ import CartDrawer from '@cart/CartDrawer.jsx';
 import AuthModal from '@auth/AuthModal.jsx';
 import CheckoutModal from '@payment/CheckoutModal.jsx';
 
+// Dedicated Multi-Page View Components
+import ParcelTracking from './ParcelTracking.jsx';
+import HomeView from './views/HomeView.jsx';
+import ShopView from './views/ShopView.jsx';
+import CategoriesView from './views/CategoriesView.jsx';
+import DealsView from './views/DealsView.jsx';
+import AboutView from './views/AboutView.jsx';
+import ContactView from './views/ContactView.jsx';
+
 const photo = (id, w = 700) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&q=85`;
+
+// Parse current URL hash to match known views
+const getInitialView = () => {
+  if (typeof window === 'undefined') return 'home';
+  const h = (window.location.hash || '').replace('#', '').toLowerCase().split('?')[0];
+  if (['home', ''].includes(h)) return 'home';
+  if (['shop', 'products', 'catalog'].includes(h)) return 'shop';
+  if (['categories', 'category'].includes(h)) return 'categories';
+  if (['deals', 'deal', 'offers', 'sale'].includes(h)) return 'deals';
+  if (['track', 'tracking', 'parcel', 'order', 'orders', 'track-order'].includes(h)) return 'track';
+  if (['about', 'story', 'farm'].includes(h)) return 'about';
+  if (['contact', 'support', 'help'].includes(h)) return 'contact';
+  return 'home';
+};
 
 function App() {
   // Persistent state from api
@@ -23,16 +46,18 @@ function App() {
   const [cart, setCart] = useState(() => api.getCart());
   const [favorites, setFavorites] = useState(() => api.getFavorites());
 
-  // UI state
+  // Multi-page routing view state: 'home' | 'shop' | 'categories' | 'deals' | 'track' | 'about' | 'contact'
+  const [activeView, setActiveView] = useState(getInitialView);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [trackingOrderId, setTrackingOrderId] = useState('');
+
+  // UI state
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [email, setEmail] = useState('');
-  const [subscribed, setSubscribed] = useState(false);
   const [notice, setNotice] = useState('');
   const [storeSettings, setStoreSettings] = useState(() => {
     try {
@@ -52,6 +77,28 @@ function App() {
   });
 
   const bridgeIframeRef = useRef(null);
+
+  // Navigate between dedicated pages cleanly
+  const navigateTo = (view, cat = null) => {
+    setActiveView(view);
+    if (cat !== null) setActiveCategory(cat);
+    setMenuOpen(false);
+    window.location.hash = '#' + view;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Sync activeView with browser back/forward and URL hash changes
+  useEffect(() => {
+    const handleHashChange = () => {
+      const rawHash = window.location.hash.toLowerCase();
+      if (rawHash === '#admin' || rawHash.startsWith('#sync=')) return;
+      const view = getInitialView();
+      setActiveView(view);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   // Persist cart & favorites changes
   useEffect(() => {
@@ -104,12 +151,11 @@ function App() {
     } catch {}
   };
 
-  // Real-time synchronization with GreenBasket Admin Panel (greenbasket-admin-panel.vercel.app)
+  // Real-time synchronization with GreenBasket Admin Panel
   useEffect(() => {
     const GIST_ID = '5c3186e2427e5900031ae4ea398ac1e7';
     const GIST_TOKEN_PARTS = ['gho_bB41m2', 'XPLzNkr9mj', '1mR1GXiFsL', 'Wt0D3MxTPq'];
 
-    // 1. Direct postMessage handler (0ms instant live sync from Admin tab or window.opener)
     const handleMessage = (e) => {
       if (!e.data || typeof e.data !== 'object') return;
       if (e.data.type === 'GB_CATALOG_SYNC' || e.data.type === 'GB_PRODUCTS_UPDATED') {
@@ -129,7 +175,6 @@ function App() {
 
     window.addEventListener('message', handleMessage);
 
-    // 2. BroadcastChannel for same-origin tabs (0ms instant sync)
     let ch;
     try {
       ch = new BroadcastChannel('gb_bridge_channel');
@@ -140,7 +185,6 @@ function App() {
       };
     } catch (err) {}
 
-    // 3. URL Hash state bootstrapper (0ms instant load when opened from Admin)
     const checkSyncHash = () => {
       if (window.location.hash.startsWith('#sync=')) {
         try {
@@ -169,14 +213,12 @@ function App() {
     checkSyncHash();
     window.addEventListener('hashchange', checkSyncHash);
 
-    // 4. Signal ready to admin opener if available
     try {
       if (window.opener && !window.opener.closed) {
         window.opener.postMessage({ type: 'GB_STOREFRONT_READY' }, '*');
       }
     } catch (err) {}
 
-    // 5. Background Cloud Gist sync & polling (Instant & Never stale)
     const fetchCloudCatalog = async () => {
       try {
         const token = GIST_TOKEN_PARTS.join('');
@@ -196,7 +238,6 @@ function App() {
         const cloudTime = new Date(parsed.updatedAt || gistData.updated_at).getTime();
         const localTime = getLocalCatalogTime();
 
-        // STRICT PERSISTENCE SAFETY: ONLY OVERWRITE IF CLOUD IS STRICTLY NEWER THAN LOCAL!
         if (cloudTime > localTime) {
           setLocalCatalogTime(cloudTime);
           const normalized = normalizeCatalog(parsed.products);
@@ -209,9 +250,7 @@ function App() {
             try { localStorage.setItem('gb_store_settings', JSON.stringify(parsed.settings)); } catch (err) {}
           }
         }
-      } catch (err) {
-        // quiet fallback
-      }
+      } catch (err) {}
     };
 
     fetchCloudCatalog();
@@ -259,21 +298,14 @@ function App() {
   const cartCount = Object.values(cart).reduce((sum, qty) => sum + qty, 0);
   const cartTotal = productsList.reduce((sum, p) => sum + getProductPrice(p) * (cart[p.id] || 0), 0);
 
-  const shownProducts = useMemo(() => {
-    return productsList.filter(p =>
-      (activeCategory === 'All' || p.category === activeCategory) &&
-      p.name.toLowerCase().includes(search.toLowerCase())
-    );
-  }, [productsList, activeCategory, search]);
-
   const showToast = (msg) => {
     setNotice(msg);
-    setTimeout(() => setNotice(''), 2200);
+    setTimeout(() => setNotice(''), 2500);
   };
 
   const addToCart = (id) => {
     setCart(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
-    showToast('Added to your basket');
+    showToast('Added to your basket 🌱');
   };
 
   const changeQty = (id, amount) => {
@@ -306,9 +338,9 @@ function App() {
   const handleOrderCompleted = (orderData) => {
     const newOrder = api.createOrder(orderData);
     setCart({});
-    showToast(`Order #${newOrder.id} confirmed!`);
+    setTrackingOrderId(newOrder.id);
+    showToast(`Order #${newOrder.id} confirmed! You can now track your parcel live 📦`);
 
-    // Forward new order to the dedicated Admin Panel (greenbasket-admin-panel.vercel.app)
     try {
       const orderPayload = {
         type: 'GB_NEW_ORDER',
@@ -333,6 +365,11 @@ function App() {
       console.warn('Bridge order notification failed', e);
     }
 
+    // Auto navigate to parcel tracking page so customer sees real-time status!
+    setTimeout(() => {
+      navigateTo('track');
+    }, 1500);
+
     return newOrder;
   };
 
@@ -341,63 +378,134 @@ function App() {
       {/* Top Banner Strip */}
       <div className="top-strip">
         <div className="top-inner">
-          <span><Truck size={14}/> {storeSettings.announcement || 'FREE DELIVERY on orders over $49'}</span>
-          <span><Sprout size={14}/> Eat Fresh, Live Healthy</span>
-          <span><Headphones size={14}/> Support 24/7</span>
+          <span><Truck size={14} /> {storeSettings.announcement || 'FREE DELIVERY on orders over $49'}</span>
+          <span
+            className="top-strip-clickable"
+            onClick={() => navigateTo('track')}
+            title="Click to track your parcel live"
+            style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Package size={14} color="var(--lime)" /> <b>Track Parcel Live 📦</b>
+          </span>
+          <span
+            className="top-strip-clickable"
+            onClick={() => navigateTo('contact')}
+            style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Headphones size={14} /> Support 24/7
+          </span>
         </div>
       </div>
 
       {/* Main Header */}
       <header className="header">
-        <a href="#home" className="brand" aria-label="GreenBasket home">
-          <span className="brand-mark"><ShoppingCart size={29}/><Leaf size={16}/></span>
-          <span><b>Green<span>Basket</span></b><small>Fresh from Nature</small></span>
-        </a>
-
-        <button 
-          className="mobile-menu icon-btn" 
-          onClick={() => setMenuOpen(!menuOpen)} 
-          aria-label="Toggle menu"
+        <button
+          type="button"
+          onClick={() => navigateTo('home')}
+          className="brand"
+          aria-label="GreenBasket home"
+          style={{ background: 'none', border: 0, padding: 0, textAlign: 'left', cursor: 'pointer' }}
         >
-          {menuOpen ? <X/> : <Menu/>}
+          <span className="brand-mark"><ShoppingCart size={29} /><Leaf size={16} /></span>
+          <span><b>Green<span>Basket</span></b><small>Fresh from Nature</small></span>
         </button>
 
+        <button
+          className="mobile-menu icon-btn"
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Toggle menu"
+        >
+          {menuOpen ? <X /> : <Menu />}
+        </button>
+
+        {/* Primary Multi-Page Navigation Bar */}
         <nav className={menuOpen ? 'nav nav-open' : 'nav'}>
-          {['Home', 'Shop', 'Categories', 'Deals', 'About Us', 'Contact'].map((item, i) =>
-            <a 
-              key={item} 
-              className={i === 0 ? 'active' : ''} 
-              href={['#home', '#products', '#categories', '#deals', '#about', '#contact'][i]} 
-              onClick={() => setMenuOpen(false)}
-            >
-              {item}
-            </a>
-          )}
+          <button
+            type="button"
+            className={activeView === 'home' ? 'active' : ''}
+            onClick={() => navigateTo('home')}
+          >
+            Home
+          </button>
+          <button
+            type="button"
+            className={activeView === 'shop' ? 'active' : ''}
+            onClick={() => navigateTo('shop')}
+          >
+            Shop
+          </button>
+          <button
+            type="button"
+            className={activeView === 'categories' ? 'active' : ''}
+            onClick={() => navigateTo('categories')}
+          >
+            Categories
+          </button>
+          <button
+            type="button"
+            className={activeView === 'deals' ? 'active' : ''}
+            onClick={() => navigateTo('deals')}
+          >
+            Deals
+          </button>
+          {/* Prominent Public Parcel Tracking Button in Navigation */}
+          <button
+            type="button"
+            className={`nav-track-btn ${activeView === 'track' ? 'active active-track' : ''}`}
+            onClick={() => navigateTo('track')}
+          >
+            <Truck size={14} /> Track Parcel 📦
+          </button>
+          <button
+            type="button"
+            className={activeView === 'about' ? 'active' : ''}
+            onClick={() => navigateTo('about')}
+          >
+            About Us
+          </button>
+          <button
+            type="button"
+            className={activeView === 'contact' ? 'active' : ''}
+            onClick={() => navigateTo('contact')}
+          >
+            Contact
+          </button>
         </nav>
 
         <div className="header-actions">
+          {/* Public Track Parcel Quick Action Pill (Desktop Header) */}
+          <button
+            type="button"
+            className={`header-track-pill ${activeView === 'track' ? 'header-track-active' : ''}`}
+            onClick={() => navigateTo('track')}
+            title="Public Parcel Tracking"
+          >
+            <Truck size={15} />
+            <span>Track Parcel</span>
+          </button>
+
           {/* Search Trigger */}
           <button className="icon-btn" aria-label="Search" onClick={() => setSearchOpen(!searchOpen)}>
-            <Search/>
+            <Search />
           </button>
 
           {/* User Account / Profile */}
-          <button 
-            className="icon-btn account-btn" 
-            aria-label="Account" 
+          <button
+            className="icon-btn account-btn"
+            aria-label="Account"
             onClick={() => setAuthOpen(true)}
             title={currentUser ? currentUser.name : "Account"}
             style={{ position: 'relative' }}
           >
-            <UserRound/>
+            <UserRound />
             {currentUser && (
-              <span style={{ 
-                position: 'absolute', 
-                top: '2px', 
-                right: '2px', 
-                width: '7px', 
-                height: '7px', 
-                borderRadius: '50%', 
+              <span style={{
+                position: 'absolute',
+                top: '2px',
+                right: '2px',
+                width: '7px',
+                height: '7px',
+                borderRadius: '50%',
                 background: 'var(--lime)',
                 boxShadow: '0 0 6px var(--lime)'
               }}></span>
@@ -406,283 +514,169 @@ function App() {
 
           {/* Cart Icon with badge */}
           <button className="icon-btn cart-trigger" aria-label="Open basket" onClick={() => setCartOpen(true)}>
-            <ShoppingCart/>
+            <ShoppingCart />
             {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
           </button>
         </div>
 
-        {/* Search Panel Dropdown */}
+        {/* Global Search Panel Dropdown */}
         {searchOpen && (
           <div className="search-panel">
-            <Search size={18}/>
-            <input 
-              autoFocus 
-              placeholder="Search fresh vegetables, fruits..." 
-              value={search} 
+            <Search size={18} />
+            <input
+              autoFocus
+              placeholder="Search fresh vegetables, fruits..."
+              value={search}
               onChange={e => {
-                setSearch(e.target.value); 
-                document.querySelector('#products')?.scrollIntoView({ behavior: 'smooth' });
+                setSearch(e.target.value);
+                if (activeView !== 'shop') {
+                  navigateTo('shop');
+                }
               }}
             />
             <button onClick={() => { setSearch(''); setSearchOpen(false); }}>
-              <X size={18}/>
+              <X size={18} />
             </button>
           </div>
         )}
       </header>
 
-      {/* Main Page Content */}
-      <main>
-        {/* Hero Section */}
-        <section className="hero section-wrap" id="home">
-          <div className="hero-copy">
-            <div className="eyebrow"><span className="eyebrow-dot"></span> 100% ORGANIC & FRESH</div>
-            <h1>Fresh Food.<br/>Healthy Life.<br/><em>Happy You.</em></h1>
-            <p>Organic fruits, vegetables & greens<br className="desktop-break"/> delivered directly from farm to your door within 24h.</p>
-            <a className="btn btn-primary" href="#products">Shop Now <ArrowRight size={18}/></a>
-            <div className="hero-perks">
-              <div><span className="perk-icon"><Leaf/></span><span><b>100% Organic</b><small>Certified produce</small></span></div>
-              <div><span className="perk-icon"><Truck/></span><span><b>Fast Delivery</b><small>Same day free</small></span></div>
-              <div><span className="perk-icon"><ShieldCheck/></span><span><b>Secure Checkout</b><small>Safe payments</small></span></div>
-            </div>
-          </div>
-          <div className="hero-art">
-            <div className="hero-glow"></div>
-            <img src={photo('photo-1540420773420-3366772f4999', 1100)} alt="A colorful basket of fresh vegetables"/>
-            <div className="fresh-stamp"><span>EAT FRESH</span><b>STAY<br/>HEALTHY</b><Leaf size={17}/></div>
-            <span className="floating-leaf leaf-one">✦</span><span className="floating-leaf leaf-two">✦</span>
-          </div>
-        </section>
+      {/* Main Reactive Dynamic View (Separate Dedicated Pages) */}
+      <main className="main-content-view">
+        {activeView === 'home' && (
+          <HomeView
+            productsList={productsList}
+            categories={categories}
+            cart={cart}
+            favorites={favorites}
+            addToCart={addToCart}
+            toggleFavorite={toggleFavorite}
+            navigateTo={navigateTo}
+            photo={photo}
+            storeSettings={storeSettings}
+            onSubscribe={showToast}
+          />
+        )}
 
-        {/* Farm Story Section */}
-        <section className="farm-panel section-wrap" id="about">
-          <div className="farmer-photo"><img src={photo('photo-1500382017468-9049fed747ef', 650)} alt="Sunlit green farm"/></div>
-          <div className="farm-copy">
-            <span className="kicker">WELCOME TO GREENBASKET</span>
-            <h2>From Our Farm<br/>To <em>Your Table</em></h2>
-            <p>We bring you the freshest, handpicked produce from trusted local growers. Certified quality you can trust, every single day.</p>
-            <a href="#products" className="text-link">Explore Fresh Harvest <ArrowRight size={16}/></a>
-          </div>
-          <div className="farm-stats">
-            <div><span className="stat-icon"><Sprout/></span><p><b>25+</b><small>Local Partner Farms</small></p></div>
-            <div><span className="stat-icon"><Leaf/></span><p><b>500+</b><small>Organic Items</small></p></div>
-            <div><span className="stat-icon"><Heart/></span><p><b>10K+</b><small>Happy Customers</small></p></div>
-          </div>
-        </section>
+        {activeView === 'shop' && (
+          <ShopView
+            productsList={productsList}
+            categories={categories}
+            cart={cart}
+            favorites={favorites}
+            addToCart={addToCart}
+            toggleFavorite={toggleFavorite}
+            activeCategory={activeCategory}
+            setActiveCategory={setActiveCategory}
+            navigateTo={navigateTo}
+          />
+        )}
 
-        {/* Categories Section */}
-        <section className="section-wrap section-block" id="categories">
-          <div className="section-heading">
-            <div><span className="heading-leaf">✦</span><h2>Shop by Category</h2></div>
-            <a href="#products" onClick={() => setActiveCategory('All')}>View all <ArrowRight size={16}/></a>
-          </div>
-          <div className="category-grid">
-            {categories.map(cat => (
-              <button 
-                className={'category-card ' + (activeCategory === cat.name ? 'category-active' : '')} 
-                key={cat.name} 
-                onClick={() => {
-                  setActiveCategory(activeCategory === cat.name ? 'All' : cat.name);
-                  document.querySelector('#products')?.scrollIntoView({ behavior: 'smooth' });
-                }}
-              >
-                <img src={cat.image} alt={cat.name}/>
-                <b>{cat.name}</b>
-                <small>{cat.count}</small>
-              </button>
-            ))}
-          </div>
-        </section>
+        {activeView === 'categories' && (
+          <CategoriesView
+            categories={categories}
+            productsList={productsList}
+            activeCategory={activeCategory}
+            setActiveCategory={setActiveCategory}
+            cart={cart}
+            favorites={favorites}
+            addToCart={addToCart}
+            toggleFavorite={toggleFavorite}
+            navigateTo={navigateTo}
+          />
+        )}
 
-        {/* Promotional Deal Banner */}
-        <section className="deal-banner section-wrap" id="deals">
-          <div className="deal-copy">
-            <span>LIMITED TIME OFFER</span>
-            <h2>UP TO <em>30% OFF</em></h2>
-            <h3>On Fresh Seasonal Vegetables</h3>
-            <a href="#products" className="btn btn-yellow">Grab the Deal <ArrowRight size={16}/></a>
-          </div>
-          <div className="deal-image"><img src={photo('photo-1518843875459-f738682238a6', 900)} alt="Fresh seasonal vegetables"/></div>
-          <div className="deal-seal"><span>Best Quality</span><b>Best Price</b></div>
-        </section>
+        {activeView === 'deals' && (
+          <DealsView
+            productsList={productsList}
+            cart={cart}
+            favorites={favorites}
+            addToCart={addToCart}
+            toggleFavorite={toggleFavorite}
+            navigateTo={navigateTo}
+            storeSettings={storeSettings}
+            onShowToast={showToast}
+          />
+        )}
 
-        {/* Why Choose Us */}
-        <section className="section-wrap section-block why-block">
-          <div className="section-heading"><div><span className="heading-leaf">✦</span><h2>Why Choose GreenBasket?</h2></div></div>
-          <div className="benefit-grid">
-            <div className="benefit"><Sprout/><span><b>Farm Fresh</b><small>Handpicked daily with care</small></span></div>
-            <div className="benefit"><CheckCircle2/><span><b>100% Chemical Free</b><small>Safe for family & kids</small></span></div>
-            <div className="benefit"><Leaf/><span><b>Sustainably Grown</b><small>Protects natural ecology</small></span></div>
-            <div className="benefit"><ShieldCheck/><span><b>Money-Back Quality</b><small>Guaranteed freshness</small></span></div>
-          </div>
-        </section>
+        {activeView === 'track' && (
+          <ParcelTracking
+            initialOrderId={trackingOrderId}
+            onShopNow={() => navigateTo('shop')}
+          />
+        )}
 
-        {/* Products Grid Block */}
-        <section className="section-wrap section-block products-block" id="products">
-          <div className="section-heading">
-            <div>
-              <span className="heading-leaf">✦</span>
-              <h2>{activeCategory === 'All' ? 'Farm Fresh Produce' : activeCategory}</h2>
-            </div>
-            <a href="#products" onClick={() => setActiveCategory('All')}>View all ({productsList.length}) <ArrowRight size={16}/></a>
-          </div>
+        {activeView === 'about' && (
+          <AboutView
+            navigateTo={navigateTo}
+            photo={photo}
+          />
+        )}
 
-          <div className="filter-row">
-            <button 
-              className={activeCategory === 'All' ? 'filter active-filter' : 'filter'} 
-              onClick={() => setActiveCategory('All')}
-            >
-              All products ({productsList.length})
-            </button>
-            {categories.map(c => (
-              <button 
-                key={c.name} 
-                className={activeCategory === c.name ? 'filter active-filter' : 'filter'} 
-                onClick={() => setActiveCategory(c.name)}
-              >
-                {c.name}
-              </button>
-            ))}
-          </div>
-
-          {shownProducts.length ? (
-            <div className="product-grid">
-              {shownProducts.map(p => {
-                const hasDiscount = p.discountPrice && Number(p.discountPrice) > 0 && Number(p.discountPrice) < Number(p.price);
-                return (
-                  <article className="product-card" key={p.id}>
-                    <div className="product-image">
-                      <img src={p.image} alt={p.name}/>
-                      {hasDiscount ? (
-                        <span className="product-tag" style={{ background: '#e11d48', color: '#fff', fontWeight: 800 }}>
-                          -{Math.round((1 - p.discountPrice / p.price) * 100)}% OFF
-                        </span>
-                      ) : (
-                        <span className="product-tag">{p.tag || 'Organic'}</span>
-                      )}
-                      <button 
-                        className={'heart-btn ' + (favorites.includes(p.id) ? 'hearted' : '')} 
-                        aria-label="Toggle favorite" 
-                        onClick={() => toggleFavorite(p.id)}
-                      >
-                        <Heart size={17} fill={favorites.includes(p.id) ? 'currentColor' : 'none'}/>
-                      </button>
-                    </div>
-                    <div className="product-info">
-                      <div className="rating">
-                        <Star size={12} fill="currentColor"/> {p.rating || 4.9} 
-                        <span>({p.reviews || 24} reviews)</span>
-                      </div>
-                      <h3>{p.name}</h3>
-                      <small>{p.unit}</small>
-                      <div className="product-bottom">
-                        <div>
-                          {hasDiscount ? (
-                            <>
-                              <b style={{ color: 'var(--lime)' }}>${Number(p.discountPrice).toFixed(2)}</b>
-                              <span style={{ textDecoration: 'line-through', opacity: 0.55, fontSize: '11px', marginLeft: '5px' }}>
-                                ${Number(p.price).toFixed(2)}
-                              </span>
-                              <small> / {p.unit.split(' / ')[0]}</small>
-                            </>
-                          ) : (
-                            <>
-                              <b>${Number(p.price).toFixed(2)}</b>
-                              <small> / {p.unit.split(' / ')[0]}</small>
-                            </>
-                          )}
-                        </div>
-                        <button className="add-btn" onClick={() => addToCart(p.id)}>
-                          {cart[p.id] ? (
-                            <><CheckCircle2 size={15}/> Added ({cart[p.id]})</>
-                          ) : (
-                            <><Plus size={16}/> Add to Cart</>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="empty-state">No products found. Try another search.</div>
-          )}
-        </section>
-
-        {/* Newsletter Section */}
-        <section className="newsletter section-wrap">
-          <div className="newsletter-icon"><Mail/></div>
-          <div className="newsletter-copy">
-            <h3>Stay Healthy, Stay Updated!</h3>
-            <p>Subscribe to get best offers, health tips &<br/> fresh updates in your inbox.</p>
-          </div>
-          <form 
-            className="subscribe-form" 
-            onSubmit={e => {
-              e.preventDefault();
-              if (email.includes('@')) {
-                setSubscribed(true);
-                setEmail('');
-                showToast('Subscribed to GreenBasket updates! 🌱');
-              } else {
-                showToast('Please enter a valid email address.');
-              }
-            }}
-          >
-            <input 
-              type="email" 
-              required 
-              placeholder="Enter your email" 
-              value={email} 
-              onChange={e => setEmail(e.target.value)}
-            />
-            <button type="submit">{subscribed ? 'Subscribed ✓' : 'Subscribe'}</button>
-          </form>
-          <img src={photo('photo-1540420773420-3366772f4999', 350)} alt="" className="newsletter-produce"/>
-        </section>
+        {activeView === 'contact' && (
+          <ContactView
+            navigateTo={navigateTo}
+            onShowToast={showToast}
+          />
+        )}
       </main>
 
       {/* Footer */}
-      <footer className="footer section-wrap" id="contact">
+      <footer className="footer section-wrap">
         <div className="footer-brand">
-          <a href="#home" className="brand">
-            <span className="brand-mark"><ShoppingCart size={27}/><Leaf size={14}/></span>
+          <button
+            type="button"
+            onClick={() => navigateTo('home')}
+            className="brand"
+            style={{ background: 'none', border: 0, padding: 0, textAlign: 'left', cursor: 'pointer' }}
+          >
+            <span className="brand-mark"><ShoppingCart size={27} /><Leaf size={14} /></span>
             <span><b>Green<span>Basket</span></b><small>Fresh from Nature</small></span>
-          </a>
+          </button>
           <p>Your trusted source for fresh, organic and healthy food. We care for you and the planet.</p>
           <div className="socials">
-            <a href="https://facebook.com" aria-label="Facebook"><Facebook/></a>
-            <a href="https://instagram.com" aria-label="Instagram"><Instagram/></a>
-            <a href="https://youtube.com" aria-label="YouTube"><Youtube/></a>
+            <a href="https://facebook.com" aria-label="Facebook" target="_blank" rel="noopener noreferrer"><Facebook /></a>
+            <a href="https://instagram.com" aria-label="Instagram" target="_blank" rel="noopener noreferrer"><Instagram /></a>
+            <a href="https://youtube.com" aria-label="YouTube" target="_blank" rel="noopener noreferrer"><Youtube /></a>
           </div>
         </div>
+
         <div className="footer-col">
-          <h4>Quick Links</h4>
-          <a href="#products">Shop</a>
-          <a href="#categories">Categories</a>
-          <a href="#deals">Deals</a>
-          <a href="#about">About Us</a>
-          <a href="#contact">Contact</a>
+          <h4>Pages & Shop</h4>
+          <button type="button" className="footer-link-btn" onClick={() => navigateTo('home')}>Home</button>
+          <button type="button" className="footer-link-btn" onClick={() => navigateTo('shop')}>Shop Catalog</button>
+          <button type="button" className="footer-link-btn" onClick={() => navigateTo('categories')}>Categories</button>
+          <button type="button" className="footer-link-btn" onClick={() => navigateTo('deals')}>Weekly Deals</button>
+          <button type="button" className="footer-link-btn" onClick={() => navigateTo('about')}>About Us</button>
+          <button type="button" className="footer-link-btn" onClick={() => navigateTo('contact')}>Contact Us</button>
         </div>
+
         <div className="footer-col">
-          <h4>Customer Service</h4>
-          <a href="#account" onClick={(e) => { e.preventDefault(); setAuthOpen(true); }}>
+          <h4>Public Tracking & Support</h4>
+          <button
+            type="button"
+            className="footer-link-btn footer-track-link"
+            onClick={() => navigateTo('track')}
+            style={{ color: 'var(--lime)', fontWeight: 700 }}
+          >
+            📦 Track Parcel Live
+          </button>
+          <button type="button" className="footer-link-btn" onClick={() => setAuthOpen(true)}>
             My Account {currentUser ? `(${currentUser.name})` : ''}
-          </a>
-          <a href="#contact">Track Order</a>
-          <a href="#contact">Shipping & Delivery</a>
-          <a href="#contact">Returns & Refunds</a>
-          <a href="#contact">FAQs</a>
+          </button>
+          <button type="button" className="footer-link-btn" onClick={() => navigateTo('contact')}>Shipping & Delivery</button>
+          <button type="button" className="footer-link-btn" onClick={() => navigateTo('contact')}>Returns & Refunds</button>
+          <button type="button" className="footer-link-btn" onClick={() => navigateTo('contact')}>FAQs</button>
         </div>
+
         <div className="footer-col">
           <h4>Information</h4>
-          <a href="#contact">Privacy Policy</a>
-          <a href="#contact">Terms & Conditions</a>
-          <a href="#contact">Refund Policy</a>
-          <a href="#contact">Blog</a>
-          <a href="#contact">Careers</a>
+          <button type="button" className="footer-link-btn" onClick={() => navigateTo('about')}>Farm Heritage</button>
+          <button type="button" className="footer-link-btn" onClick={() => navigateTo('about')}>Organic Standards</button>
+          <button type="button" className="footer-link-btn" onClick={() => navigateTo('contact')}>Privacy Policy</button>
+          <button type="button" className="footer-link-btn" onClick={() => navigateTo('contact')}>Terms & Conditions</button>
         </div>
+
         <div className="footer-col payment-col">
           <h4>Payment Methods</h4>
           <div className="payment-badges">
@@ -691,19 +685,20 @@ function App() {
             <span>Mastercard</span>
             <span>SSL SECURE</span>
           </div>
-          <p><ShieldCheck size={14}/> Secure checkout</p>
+          <p><ShieldCheck size={14} /> Secure checkout</p>
         </div>
+
         <div className="copyright">
-          © 2026 GreenBasket. All rights reserved. <span>Made with <Heart size={12} fill="currentColor" style={{ cursor: 'default' }} onClick={(e) => { if (e.detail === 3) window.open('https://greenbasket-admin-panel.vercel.app/', '_blank', 'noopener,noreferrer'); }}/> for fresh living.</span>
+          © 2026 GreenBasket. All rights reserved. <span>Made with <Heart size={12} fill="currentColor" style={{ cursor: 'default' }} onClick={(e) => { if (e.detail === 3) window.open('https://greenbasket-admin-panel.vercel.app/', '_blank', 'noopener,noreferrer'); }} /> for fresh living.</span>
         </div>
       </footer>
 
       {/* Toast Notification */}
       {notice && (
         <div className="toast">
-          <CheckCircle2 size={17}/>
+          <CheckCircle2 size={17} />
           {notice}
-          <button onClick={() => setNotice('')} aria-label="Dismiss"><X size={15}/></button>
+          <button onClick={() => setNotice('')} aria-label="Dismiss"><X size={15} /></button>
         </div>
       )}
 
@@ -756,4 +751,4 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('root')).render(<App/>);
+createRoot(document.getElementById('root')).render(<App />);
