@@ -338,6 +338,7 @@ function App() {
         phone: user.phone || 'N/A',
         address: user.address || 'Standard Delivery',
         status: 'Active',
+        totalOrders: 0,
         ordersCount: 0,
         totalSpent: 0,
         joinedDate: new Date().toISOString().split('T')[0],
@@ -452,13 +453,38 @@ function App() {
         order: fullOrder
       };
 
+      const custPayload = {
+        type: 'GB_NEW_CUSTOMER',
+        customer: {
+          id: 'CUST-' + Math.floor(1000 + Math.random() * 9000),
+          name: fullOrder.customer,
+          phone: fullOrder.customerPhone || fullOrder.phone || '',
+          email: orderData.customer?.email || currentUser?.email || '',
+          address: fullOrder.address || 'Standard Delivery',
+          status: 'Active',
+          totalOrders: 1,
+          ordersCount: 1,
+          totalSpent: Number(fullOrder.total || 0),
+          lastOrderDate: fullOrder.date || 'Today',
+          joinedDate: fullOrder.date || 'Today',
+          notes: fullOrder.notes || 'Auto-enrolled from website order'
+        }
+      };
+
       bridgeIframeRef.current?.contentWindow?.postMessage(orderPayload, '*');
+      bridgeIframeRef.current?.contentWindow?.postMessage(custPayload, '*');
       if (window.opener && !window.opener.closed) {
-        try { window.opener.postMessage(orderPayload, '*'); } catch (err) {}
+        try { 
+          window.opener.postMessage(orderPayload, '*'); 
+          window.opener.postMessage(custPayload, '*');
+        } catch (err) {}
       }
-      const ch = new BroadcastChannel('gb_bridge_channel');
-      ch.postMessage(orderPayload);
-      ch.close();
+      try {
+        const ch = new BroadcastChannel('gb_bridge_channel');
+        ch.postMessage(orderPayload);
+        ch.postMessage(custPayload);
+        ch.close();
+      } catch (err) {}
 
       // Multi-device Cloud Gist sync for orders
       try {
@@ -490,8 +516,9 @@ function App() {
                 const existing = existingCusts[cIdx];
                 existingCusts[cIdx] = {
                   ...existing,
-                  ordersCount: (existing.ordersCount || 0) + 1,
-                  totalSpent: (existing.totalSpent || 0) + (Number(fullOrder.total) || 0),
+                  totalOrders: (existing.totalOrders || existing.ordersCount || 0) + 1,
+                  ordersCount: (existing.totalOrders || existing.ordersCount || 0) + 1,
+                  totalSpent: Number(((Number(existing.totalSpent) || 0) + (Number(fullOrder.total) || 0)).toFixed(2)),
                   lastOrderDate: new Date().toISOString().split('T')[0],
                   address: fullOrder.address || existing.address || '',
                   phone: cPhone || existing.phone || '',
@@ -505,6 +532,7 @@ function App() {
                   phone: cPhone || 'N/A',
                   address: fullOrder.address || 'Standard Delivery',
                   status: 'Active',
+                  totalOrders: 1,
                   ordersCount: 1,
                   totalSpent: Number(fullOrder.total) || 0,
                   joinedDate: new Date().toISOString().split('T')[0],
@@ -930,6 +958,7 @@ function App() {
         products={productsList}
         cartTotal={cartTotal}
         onOrderCompleted={handleOrderCompleted}
+        currentUser={currentUser}
       />
 
       {/* Authentication Modal */}

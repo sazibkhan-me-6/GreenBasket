@@ -1,16 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ShieldCheck, CheckCircle2, CreditCard, Banknote, Smartphone, Truck, ArrowRight } from 'lucide-react';
 
-export default function CheckoutModal({ isOpen, onClose, cart, products, cartTotal, onOrderCompleted }) {
+export default function CheckoutModal({ isOpen, onClose, cart, products, cartTotal, onOrderCompleted, currentUser }) {
   const [step, setStep] = useState('form'); // 'form' or 'success'
   const [completedOrder, setCompletedOrder] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [formData, setFormData] = useState({
-    name: 'Sazib Ahmed',
-    phone: '+880 1712-345678',
-    address: 'House #24, Road #4, Dhanmondi, Dhaka',
+    name: currentUser?.name || 'Sazib Ahmed',
+    phone: currentUser?.phone || '+880 1712-345678',
+    address: currentUser?.address || 'House #24, Road #4, Dhanmondi, Dhaka',
     notes: 'Please call before delivery'
   });
+
+  useEffect(() => {
+    if (currentUser) {
+      setFormData(prev => ({
+        ...prev,
+        name: currentUser.name || prev.name,
+        phone: currentUser.phone || prev.phone,
+        address: currentUser.address || prev.address
+      }));
+    }
+  }, [currentUser]);
 
   if (!isOpen) return null;
 
@@ -31,7 +42,10 @@ export default function CheckoutModal({ isOpen, onClose, cart, products, cartTot
     const orderData = {
       items: cartItems,
       total: grandTotal.toFixed(2),
-      customer: formData,
+      customer: {
+        ...formData,
+        email: currentUser?.email || ''
+      },
       paymentMethod: paymentMethod === 'cod' ? 'Cash on Delivery' : (paymentMethod === 'card' ? 'Credit/Debit Card' : 'Mobile Banking')
     };
     const order = onOrderCompleted(orderData);
@@ -76,7 +90,7 @@ export default function CheckoutModal({ isOpen, onClose, cart, products, cartTot
                 <h4 style={{ margin: '0 0 10px', fontSize: '13px', color: '#273f1d' }}>1. Shipping Details</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#4b5e43', marginBottom: '4px' }}>Recipient Name</label>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#4b5e43', marginBottom: '4px' }}>Recipient Name *</label>
                     <input 
                       required 
                       type="text" 
@@ -86,7 +100,7 @@ export default function CheckoutModal({ isOpen, onClose, cart, products, cartTot
                     />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#4b5e43', marginBottom: '4px' }}>Phone Number</label>
+                    <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#4b5e43', marginBottom: '4px' }}>Phone Number *</label>
                     <input 
                       required 
                       type="text" 
@@ -98,7 +112,7 @@ export default function CheckoutModal({ isOpen, onClose, cart, products, cartTot
                 </div>
 
                 <div style={{ marginTop: '10px' }}>
-                  <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#4b5e43', marginBottom: '4px' }}>Delivery Address</label>
+                  <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: '#4b5e43', marginBottom: '4px' }}>Delivery Address *</label>
                   <input 
                     required 
                     type="text" 
