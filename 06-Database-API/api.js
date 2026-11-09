@@ -144,10 +144,12 @@ export const api = {
     return getStore(STORAGE_KEYS.USER, null);
   },
 
-  login: (email, password, role = 'customer') => {
+  login: (email, password, role = 'customer', extraData = {}) => {
     const user = {
       email,
-      name: email.split('@')[0],
+      name: extraData.name || email.split('@')[0],
+      phone: extraData.phone || '',
+      address: extraData.address || '',
       role: role === 'admin' ? 'admin' : (email.includes('admin') ? 'admin' : 'customer'),
       token: 'jwt_mock_' + Date.now(),
     };

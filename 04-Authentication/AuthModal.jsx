@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { X, UserRound, Lock, Mail, ShieldCheck, CheckCircle2, LogOut } from 'lucide-react';
+import { X, UserRound, Lock, Mail, ShieldCheck, CheckCircle2, LogOut, Phone, MapPin } from 'lucide-react';
 
 export default function AuthModal({ isOpen, onClose, onLoginSuccess, currentUser, onLogout }) {
   const [tab, setTab] = useState('login'); // 'login' or 'register'
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -15,8 +18,13 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, currentUser
       setError('Please fill in both email and password.');
       return;
     }
+    if (tab === 'register' && !name.trim()) {
+      setError('Please enter your full name.');
+      return;
+    }
     setError('');
-    onLoginSuccess(email, password, 'customer');
+    const extraData = tab === 'register' ? { name: name.trim(), phone: phone.trim(), address: address.trim(), isNew: true } : {};
+    onLoginSuccess(email, password, 'customer', extraData);
     onClose();
   };
 
@@ -187,8 +195,56 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, currentUser
             )}
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {tab === 'register' && (
+                <>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#3b4e31', marginBottom: '5px' }}>Full Name *</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid #d4dec8', borderRadius: '10px', padding: '10px 12px', background: '#ffffff' }}>
+                      <UserRound size={16} color="#718367"/>
+                      <input 
+                        type="text" 
+                        required 
+                        placeholder="e.g. Sazib Ahmed" 
+                        value={name} 
+                        onChange={e => setName(e.target.value)}
+                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: '13px', background: 'transparent', color: '#162e0c' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#3b4e31', marginBottom: '5px' }}>Contact Phone *</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid #d4dec8', borderRadius: '10px', padding: '10px 12px', background: '#ffffff' }}>
+                      <Phone size={16} color="#718367"/>
+                      <input 
+                        type="tel" 
+                        required 
+                        placeholder="+880 1712-345678" 
+                        value={phone} 
+                        onChange={e => setPhone(e.target.value)}
+                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: '13px', background: 'transparent', color: '#162e0c' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#3b4e31', marginBottom: '5px' }}>Delivery Address</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid #d4dec8', borderRadius: '10px', padding: '10px 12px', background: '#ffffff' }}>
+                      <MapPin size={16} color="#718367"/>
+                      <input 
+                        type="text" 
+                        placeholder="House #, Road #, Area, City" 
+                        value={address} 
+                        onChange={e => setAddress(e.target.value)}
+                        style={{ border: 'none', outline: 'none', width: '100%', fontSize: '13px', background: 'transparent', color: '#162e0c' }}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
               <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#3b4e31', marginBottom: '5px' }}>Email Address</label>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#3b4e31', marginBottom: '5px' }}>Email Address *</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid #d4dec8', borderRadius: '10px', padding: '10px 12px', background: '#ffffff' }}>
                   <Mail size={16} color="#718367"/>
                   <input 

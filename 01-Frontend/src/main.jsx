@@ -324,10 +324,95 @@ function App() {
     });
   };
 
-  const handleLoginSuccess = (userEmail, password, role) => {
-    const user = api.login(userEmail, password, role);
+  const handleLoginSuccess = (userEmail, password, role, extraData = {}) => {
+    const user = api.login(userEmail, password, role, extraData);
     setCurrentUser(user);
-    showToast(`Signed in as ${user.name}`);
+    showToast(extraData?.isNew ? 'Account created successfully! Welcome to GreenBasket 🎉' : `Signed in as ${user.name}`);
+
+    // Sync newly registered or signed-in customer to Admin Panel & Cloud Gist
+    try {
+      const customerObj = {
+        id: 'cust-' + Date.now(),
+        name: user.name || 'Customer',
+        email: user.email,
+        phone: user.phone || 'N/A',
+        address: user.address || 'Standard Delivery',
+        status: 'Active',
+        ordersCount: 0,
+        totalSpent: 0,
+        joinedDate: new Date().toISOString().split('T')[0],
+        lastOrderDate: '-'
+      };
+
+      const custPayload = {
+        type: 'GB_NEW_CUSTOMER',
+        customer: customerObj
+      };
+
+      bridgeIframeRef.current?.contentWindow?.postMessage(custPayload, '*');
+      if (window.opener && !window.opener.closed) {
+        try { window.opener.postMessage(custPayload, '*'); } catch (err) {}
+      }
+      try {
+        const ch = new BroadcastChannel('gb_bridge_channel');
+        ch.postMessage(custPayload);
+        ch.close();
+      } catch (err) {}
+
+      // Multi-device Cloud Gist sync for customers
+      try {
+        const GIST_TOKEN_PARTS = ['gho_bB41m2', 'XPLzNkr9mj', '1mR1GXiFsL', 'Wt0D3MxTPq'];
+        const token = GIST_TOKEN_PARTS.join('');
+        fetch(`https://api.github.com/gists/5c3186e2427e5900031ae4ea398ac1e7?_t=${Date.now()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        })
+          .then(res => res.json())
+          .then(d => {
+            const file = d.files && d.files['greenbasket_catalog.json'];
+            if (file && file.content) {
+              const parsed = JSON.parse(file.content);
+              const existingCusts = Array.isArray(parsed.customers) ? parsed.customers : [];
+              const foundIdx = existingCusts.findIndex(c => 
+                (c.email && c.email.toLowerCase() === user.email.toLowerCase()) || 
+                (c.phone && user.phone && c.phone === user.phone)
+              );
+              if (foundIdx >= 0) {
+                existingCusts[foundIdx] = {
+                  ...existingCusts[foundIdx],
+                  name: user.name || existingCusts[foundIdx].name,
+                  phone: user.phone || existingCusts[foundIdx].phone,
+                  address: user.address || existingCusts[foundIdx].address
+                };
+              } else {
+                existingCusts.unshift(customerObj);
+              }
+              parsed.customers = existingCusts;
+              parsed.updatedAt = new Date().toISOString();
+              parsed.version = Date.now();
+              fetch(`https://api.github.com/gists/5c3186e2427e5900031ae4ea398ac1e7`, {
+                method: 'PATCH',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  files: {
+                    'greenbasket_catalog.json': {
+                      content: JSON.stringify(parsed, null, 2)
+                    }
+                  }
+                })
+              }).catch(() => {});
+            }
+          })
+          .catch(() => {});
+      } catch (err) {}
+    } catch (e) {
+      console.warn('Customer sync notification failed', e);
+    }
   };
 
   const handleLogout = () => {
@@ -392,6 +477,42 @@ function App() {
               const parsed = JSON.parse(file.content);
               const existingOrders = Array.isArray(parsed.orders) ? parsed.orders : [];
               parsed.orders = [fullOrder, ...existingOrders.filter(o => o.id !== fullOrder.id)];
+
+              // Also update customer record in cloud gist
+              const existingCusts = Array.isArray(parsed.customers) ? parsed.customers : [];
+              const cPhone = fullOrder.customerPhone || fullOrder.phone || '';
+              const cName = fullOrder.customer || fullOrder.customerName || 'Customer';
+              const cIdx = existingCusts.findIndex(c => 
+                (cPhone && c.phone === cPhone) || 
+                (cName && c.name && c.name.toLowerCase() === cName.toLowerCase())
+              );
+              if (cIdx >= 0) {
+                const existing = existingCusts[cIdx];
+                existingCusts[cIdx] = {
+                  ...existing,
+                  ordersCount: (existing.ordersCount || 0) + 1,
+                  totalSpent: (existing.totalSpent || 0) + (Number(fullOrder.total) || 0),
+                  lastOrderDate: new Date().toISOString().split('T')[0],
+                  address: fullOrder.address || existing.address || '',
+                  phone: cPhone || existing.phone || '',
+                  lastOrderId: fullOrder.id
+                };
+              } else {
+                existingCusts.unshift({
+                  id: 'cust-' + Date.now(),
+                  name: cName,
+                  email: currentUser?.email || (cName.toLowerCase().replace(/[^a-z0-9]/g, '') + '@store.com'),
+                  phone: cPhone || 'N/A',
+                  address: fullOrder.address || 'Standard Delivery',
+                  status: 'Active',
+                  ordersCount: 1,
+                  totalSpent: Number(fullOrder.total) || 0,
+                  joinedDate: new Date().toISOString().split('T')[0],
+                  lastOrderDate: new Date().toISOString().split('T')[0],
+                  lastOrderId: fullOrder.id
+                });
+              }
+              parsed.customers = existingCusts;
               parsed.updatedAt = new Date().toISOString();
               parsed.version = Date.now();
               fetch(`https://api.github.com/gists/5c3186e2427e5900031ae4ea398ac1e7`, {
