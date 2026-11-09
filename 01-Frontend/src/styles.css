@@ -1593,3 +1593,116 @@
   background: var(--lime);
   color: #122c09;
 }
+
+
+/* =========================================================================
+   IN-CARD QUANTITY STEPPER (CLOSE / REMOVE ONE BY ONE)
+   ========================================================================= */
+
+.card-qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  background: #14300f;
+  border: 1.5px solid var(--lime);
+  border-radius: 9px;
+  overflow: hidden;
+  height: 33px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  animation: popIn 0.18s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes popIn {
+  from { transform: scale(0.9); opacity: 0.6; }
+  to { transform: scale(1); opacity: 1; }
+}
+.card-stepper-btn {
+  background: #1f4518;
+  border: 0;
+  color: #f5f8ee;
+  width: 30px;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  transition: all 0.18s ease;
+}
+.card-stepper-btn:hover {
+  background: var(--lime);
+  color: #122c09;
+}
+.card-stepper-btn.minus {
+  color: #f0fdf4;
+}
+.card-stepper-btn.minus:hover {
+  background: #e11d48;
+  color: #ffffff;
+}
+.card-stepper-btn.plus:hover {
+  background: #84cc16;
+  color: #122c09;
+}
+.card-stepper-qty {
+  font-family: Manrope, sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  color: #ffffff;
+  padding: 0 10px;
+  min-width: 24px;
+  text-align: center;
+  user-select: none;
+}
+
+/* Cart Item Direct Remove Button */
+.cart-remove-item-btn {
+  background: none;
+  border: 0;
+  color: #8da082;
+  cursor: pointer;
+  padding: 3px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+.cart-remove-item-btn:hover {
+  background: rgba(225, 29, 72, 0.15);
+  color: #e11d48;
+}
+
+/* =========================================================================
+   MOBILE VIEW: RESTORE ACCOUNT OPTION AT THE TOP IN HEADER
+   ========================================================================= */
+
+@media (max-width: 760px) {
+  /* Restore Account button on mobile top header exactly where it was */
+  .account-btn {
+    display: grid !important;
+    position: relative;
+    padding: 5px;
+    color: #eff5e8;
+  }
+  .account-btn svg {
+    width: 21px;
+    height: 21px;
+  }
+  .header-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 9px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .account-btn {
+    display: grid !important;
+    padding: 4px;
+  }
+  .account-btn svg {
+    width: 19px;
+    height: 19px;
+  }
+  .header-actions {
+    gap: 6px !important;
+  }
+}

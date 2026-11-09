@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import {
   Leaf, Truck, Headphones, Search, ArrowRight, ShieldCheck,
-  Sprout, Heart, Star, CheckCircle2, Mail, Sparkles, Package
+  Sprout, Heart, Star, CheckCircle2, Mail, Sparkles, Package,
+  Plus, Minus, X
 } from 'lucide-react';
 
 export default function HomeView({
@@ -10,6 +11,7 @@ export default function HomeView({
   cart,
   favorites,
   addToCart,
+  changeQty,
   toggleFavorite,
   navigateTo,
   photo,
@@ -161,6 +163,7 @@ export default function HomeView({
               className="category-card"
               key={cat.name}
               onClick={() => navigateTo('shop', cat.name)}
+              title={`Click to open ${cat.name} products`}
             >
               <img src={cat.image} alt={cat.name} />
               <b>{cat.name}</b>
@@ -258,13 +261,33 @@ export default function HomeView({
                         </>
                       )}
                     </div>
-                    <button className="add-btn" onClick={() => addToCart(p.id)}>
-                      {cart[p.id] ? (
-                        <><CheckCircle2 size={15} /> Added ({cart[p.id]})</>
-                      ) : (
-                        <>+ Add to Cart</>
-                      )}
-                    </button>
+                    {cart[p.id] ? (
+                      <div className="card-qty-stepper">
+                        <button
+                          type="button"
+                          className="card-stepper-btn minus"
+                          onClick={() => changeQty(p.id, -1)}
+                          title={cart[p.id] === 1 ? 'Remove from basket' : 'Decrease by 1'}
+                          aria-label="Decrease quantity"
+                        >
+                          {cart[p.id] === 1 ? <X size={13} /> : <Minus size={13} />}
+                        </button>
+                        <span className="card-stepper-qty">{cart[p.id]}</span>
+                        <button
+                          type="button"
+                          className="card-stepper-btn plus"
+                          onClick={() => changeQty(p.id, 1)}
+                          title="Add 1 more"
+                          aria-label="Increase quantity"
+                        >
+                          <Plus size={13} />
+                        </button>
+                      </div>
+                    ) : (
+                      <button className="add-btn" onClick={() => addToCart(p.id)}>
+                        <Plus size={15} /> Add to Cart
+                      </button>
+                    )}
                   </div>
                 </div>
               </article>

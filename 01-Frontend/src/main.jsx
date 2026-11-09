@@ -632,6 +632,7 @@ function App() {
             cart={cart}
             favorites={favorites}
             addToCart={addToCart}
+            changeQty={changeQty}
             toggleFavorite={toggleFavorite}
             navigateTo={navigateTo}
             photo={photo}
@@ -647,6 +648,7 @@ function App() {
             cart={cart}
             favorites={favorites}
             addToCart={addToCart}
+            changeQty={changeQty}
             toggleFavorite={toggleFavorite}
             activeCategory={activeCategory}
             setActiveCategory={setActiveCategory}
@@ -663,6 +665,7 @@ function App() {
             cart={cart}
             favorites={favorites}
             addToCart={addToCart}
+            changeQty={changeQty}
             toggleFavorite={toggleFavorite}
             navigateTo={navigateTo}
           />
@@ -674,6 +677,7 @@ function App() {
             cart={cart}
             favorites={favorites}
             addToCart={addToCart}
+            changeQty={changeQty}
             toggleFavorite={toggleFavorite}
             navigateTo={navigateTo}
             storeSettings={storeSettings}

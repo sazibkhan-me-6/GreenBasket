@@ -79,16 +79,38 @@ export default function CartDrawer({
                         )}
                       </small>
                       <div className="qty-control">
-                        <button onClick={() => onChangeQty(p.id, -1)} aria-label="Decrease quantity">
-                          <Minus size={13}/>
+                        <button
+                          type="button"
+                          onClick={() => onChangeQty(p.id, -1)}
+                          title={qty === 1 ? 'Remove from basket' : 'Decrease by 1'}
+                          aria-label="Decrease quantity"
+                        >
+                          {qty === 1 ? <X size={12}/> : <Minus size={12}/>}
                         </button>
                         <span>{qty}</span>
-                        <button onClick={() => onChangeQty(p.id, 1)} aria-label="Increase quantity">
-                          <Plus size={13}/>
+                        <button
+                          type="button"
+                          onClick={() => onChangeQty(p.id, 1)}
+                          title="Increase quantity"
+                          aria-label="Increase quantity"
+                        >
+                          <Plus size={12}/>
                         </button>
                       </div>
                     </div>
-                    <b className="item-total">${(getItemPrice(p) * qty).toFixed(2)}</b>
+                    <div className="cart-item-action-col" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                      <b className="item-total">${(getItemPrice(p) * qty).toFixed(2)}</b>
+                      <button
+                        type="button"
+                        className="cart-remove-item-btn"
+                        onClick={() => onChangeQty(p.id, -qty)}
+                        title="Remove product from cart"
+                        aria-label="Remove item"
+                        style={{ background: 'none', border: 0, color: '#88987d', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                      >
+                        <X size={14}/>
+                      </button>
+                    </div>
                   </div>
                 );
               })}

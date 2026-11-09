@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   Sparkles, Tag, Clock, Copy, Check, ArrowRight, ShieldCheck,
-  Truck, Star, Heart, CheckCircle2, Plus, Percent
+  Truck, Star, Heart, CheckCircle2, Plus, Percent, Minus, X
 } from 'lucide-react';
 
 export default function DealsView({
@@ -9,6 +9,7 @@ export default function DealsView({
   cart,
   favorites,
   addToCart,
+  changeQty,
   toggleFavorite,
   navigateTo,
   storeSettings,
@@ -162,13 +163,33 @@ export default function DealsView({
                     </span>
                     <small> / {(p.unit || '').split(' / ')[0]}</small>
                   </div>
-                  <button className="add-btn" onClick={() => addToCart(p.id)}>
-                    {cart[p.id] ? (
-                      <><CheckCircle2 size={15} /> Added ({cart[p.id]})</>
-                    ) : (
-                      <><Plus size={16} /> Add to Cart</>
-                    )}
-                  </button>
+                  {cart[p.id] ? (
+                    <div className="card-qty-stepper">
+                      <button
+                        type="button"
+                        className="card-stepper-btn minus"
+                        onClick={() => changeQty(p.id, -1)}
+                        title={cart[p.id] === 1 ? 'Remove from basket' : 'Decrease by 1'}
+                        aria-label="Decrease quantity"
+                      >
+                        {cart[p.id] === 1 ? <X size={13} /> : <Minus size={13} />}
+                      </button>
+                      <span className="card-stepper-qty">{cart[p.id]}</span>
+                      <button
+                        type="button"
+                        className="card-stepper-btn plus"
+                        onClick={() => changeQty(p.id, 1)}
+                        title="Add 1 more"
+                        aria-label="Increase quantity"
+                      >
+                        <Plus size={13} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button className="add-btn" onClick={() => addToCart(p.id)}>
+                      <Plus size={15} /> Add to Cart
+                    </button>
+                  )}
                 </div>
               </div>
             </article>
