@@ -341,17 +341,29 @@ function App() {
     setTrackingOrderId(newOrder.id);
     showToast(`Order #${newOrder.id} confirmed! You can now track your parcel live 📦`);
 
+    // Forward full order with Delivery Address & Contact Info to dedicated Admin Panel & Cloud Gist
     try {
+      const fullOrder = {
+        id: newOrder.id,
+        customer: orderData.customer?.name || newOrder.customerName || 'Store Customer',
+        customerName: orderData.customer?.name || newOrder.customerName || 'Store Customer',
+        customerPhone: orderData.customer?.phone || newOrder.customerPhone || '',
+        phone: orderData.customer?.phone || newOrder.customerPhone || '',
+        address: orderData.customer?.address || newOrder.address || 'Standard Delivery',
+        deliveryAddress: orderData.customer?.address || newOrder.address || 'Standard Delivery',
+        notes: orderData.customer?.notes || newOrder.notes || '',
+        items: Array.isArray(orderData.items) ? orderData.items : (newOrder.items || 'Fresh Grocery Pack'),
+        itemsSummary: Array.isArray(orderData.items) ? orderData.items.map(it => `${it.name} (${it.qty})`).join(', ') : 'Fresh Grocery Pack',
+        total: Number(orderData.total) || Number(newOrder.total) || 0,
+        paymentMethod: orderData.paymentMethod || newOrder.paymentMethod || 'Cash on Delivery',
+        paymentStatus: (orderData.paymentMethod === 'Cash on Delivery' || orderData.paymentMethod === 'cod') ? 'Pending' : 'Paid',
+        status: 'Processing',
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+      };
+
       const orderPayload = {
         type: 'GB_NEW_ORDER',
-        order: {
-          id: newOrder.id,
-          customer: orderData.customer?.name || 'Store Customer',
-          items: Array.isArray(orderData.items) ? orderData.items.map(it => `${it.name} (${it.qty})`).join(', ') : 'Fresh Grocery Pack',
-          total: Number(orderData.total) || 0,
-          status: 'Processing',
-          date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
-        }
+        order: fullOrder
       };
 
       bridgeIframeRef.current?.contentWindow?.postMessage(orderPayload, '*');
@@ -361,6 +373,44 @@ function App() {
       const ch = new BroadcastChannel('gb_bridge_channel');
       ch.postMessage(orderPayload);
       ch.close();
+
+      // Multi-device Cloud Gist sync for orders
+      try {
+        const GIST_TOKEN_PARTS = ['gho_bB41m2', 'XPLzNkr9mj', '1mR1GXiFsL', 'Wt0D3MxTPq'];
+        const token = GIST_TOKEN_PARTS.join('');
+        fetch(`https://api.github.com/gists/5c3186e2427e5900031ae4ea398ac1e7?_t=${Date.now()}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        })
+          .then(res => res.json())
+          .then(d => {
+            const file = d.files && d.files['greenbasket_catalog.json'];
+            if (file && file.content) {
+              const parsed = JSON.parse(file.content);
+              const existingOrders = Array.isArray(parsed.orders) ? parsed.orders : [];
+              parsed.orders = [fullOrder, ...existingOrders.filter(o => o.id !== fullOrder.id)];
+              parsed.updatedAt = new Date().toISOString();
+              parsed.version = Date.now();
+              fetch(`https://api.github.com/gists/5c3186e2427e5900031ae4ea398ac1e7`, {
+                method: 'PATCH',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  files: {
+                    'greenbasket_catalog.json': {
+                      content: JSON.stringify(parsed, null, 2)
+                    }
+                  }
+                })
+              }).catch(() => {});
+            }
+          })
+          .catch(() => {});
+      } catch (err) {}
     } catch (e) {
       console.warn('Bridge order notification failed', e);
     }

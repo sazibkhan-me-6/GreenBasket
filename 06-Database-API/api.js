@@ -1,4 +1,4 @@
-// Mock Database & API Client using browser localStorage for instant reactivity
+﻿// Mock Database & API Client using browser localStorage for instant reactivity
 import { initialProducts } from '../02-Products/products.js';
 
 const STORAGE_KEYS = {
@@ -114,14 +114,23 @@ export const api = {
 
   createOrder: ({ items, total, customer, paymentMethod }) => {
     const orders = api.getOrders();
+    const custName = (customer && customer.name) ? customer.name : 'Valued Customer';
+    const custPhone = (customer && customer.phone) ? customer.phone : '';
+    const custAddr = (customer && customer.address) ? customer.address : 'Standard Delivery';
+    const custNotes = (customer && customer.notes) ? customer.notes : '';
     const newOrder = {
       id: 'GB-' + Math.floor(1000 + Math.random() * 9000),
-      date: new Date().toLocaleString(),
-      customerName: customer.name || 'Valued Customer',
-      customerPhone: customer.phone || 'N/A',
-      address: customer.address || 'Standard Delivery',
+      date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+      customerName: custName,
+      customer: custName,
+      customerPhone: custPhone,
+      phone: custPhone,
+      address: custAddr,
+      deliveryAddress: custAddr,
+      notes: custNotes,
       total: Number(total),
       paymentMethod: paymentMethod || 'Cash on Delivery',
+      paymentStatus: (paymentMethod === 'Cash on Delivery' || paymentMethod === 'cod') ? 'Pending' : 'Paid',
       status: 'Processing',
       items,
     };
