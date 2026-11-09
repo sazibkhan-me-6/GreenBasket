@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import {
   Truck, Package, MapPin, Clock, Phone, CheckCircle2, Search,
   Calendar, ShieldCheck, User, AlertCircle, ArrowRight, Copy, Check,
@@ -130,10 +130,13 @@ export default function ParcelTracking({ onShopNow, initialOrderId }) {
 
         const rawStatus = o.status || 'Processing';
         let currentStep = 1;
-        if (rawStatus === 'Harvested') currentStep = 2;
-        if (rawStatus === 'Packed') currentStep = 3;
-        if (rawStatus === 'Out for Delivery' || rawStatus === 'Shipped') currentStep = 4;
-        if (rawStatus === 'Delivered') currentStep = 5;
+        if (o.trackingStage === 'placed') currentStep = 1;
+        else if (o.trackingStage === 'preparing' || rawStatus === 'Harvested' || rawStatus === 'Packed') currentStep = 2;
+        else if (o.trackingStage === 'picked_up') currentStep = 3;
+        else if (o.trackingStage === 'on_the_way' || rawStatus === 'Out for Delivery' || rawStatus === 'Shipped') currentStep = 4;
+        else if (o.trackingStage === 'delivered' || rawStatus === 'Delivered') currentStep = 5;
+        else if (rawStatus === 'Delivered') currentStep = 5;
+        else if (rawStatus === 'Shipped') currentStep = 4;
 
         // Parse items if string
         let formattedItems = [];
@@ -155,29 +158,37 @@ export default function ParcelTracking({ onShopNow, initialOrderId }) {
           address: o.address || 'Standard Delivery Address',
           date: o.date || 'Today',
           status: rawStatus,
-          eta: rawStatus === 'Delivered'
+          eta: o.estimatedDelivery || o.eta || (rawStatus === 'Delivered'
             ? 'Delivered successfully'
-            : (rawStatus === 'Shipped' || rawStatus === 'Out for Delivery'
-              ? 'Out for delivery - Estimated today within 1 hour'
-              : 'Estimated delivery: Today within 2-4 hours'),
+            : (rawStatus === 'Shipped' || rawStatus === 'Out for Delivery' || o.trackingStage === 'on_the_way'
+              ? 'Out for delivery - Estimated today within 35 mins'
+              : 'Estimated delivery: Today within 1-2 hours')),
           total: Number(o.total || 0),
           paymentMethod: o.paymentMethod || 'Cash on Delivery',
           currentStep: currentStep,
           rider: {
-            name: o.riderName || 'Rahim Mia',
-            phone: o.riderPhone || '+880 1812-987654',
-            vehicle: 'GreenBasket Eco Van #08',
-            rating: 4.92,
-            liveLocation: rawStatus === 'Delivered' ? 'Delivery completed' : 'Mirpur Road to Destination (approx. 2.1 km away)'
+            name: o.riderName || (o.rider && o.rider.name) || 'Karim Mia',
+            phone: o.riderPhone || (o.rider && o.rider.phone) || '+880 1798-765432',
+            vehicle: o.courierName || (o.rider && o.rider.vehicle) || 'GreenBasket Express Van',
+            rating: 4.95,
+            liveLocation: o.currentCheckpoint || (o.rider && o.rider.liveLocation) || (rawStatus === 'Delivered' ? 'Delivered to destination' : 'Out for delivery near recipient address')
           },
           items: formattedItems,
-          timeline: [
-            { title: 'Order Confirmed', time: o.date || 'Today 10:00 AM', desc: 'Order received and payment verified.', done: currentStep >= 1, current: currentStep === 1 },
-            { title: 'Farm Harvested & Inspected', time: '11:00 AM', desc: 'Harvested from certified organic farm.', done: currentStep >= 2, current: currentStep === 2 },
-            { title: 'Packed in Eco Basket', time: '12:30 PM', desc: 'Sealed in insulated biodegradable packaging.', done: currentStep >= 3, current: currentStep === 3 },
-            { title: 'Out for Delivery', time: '01:45 PM', desc: 'Assigned to courier for immediate delivery.', done: currentStep >= 4, current: currentStep === 4 },
-            { title: 'Delivered to Doorstep', time: rawStatus === 'Delivered' ? 'Delivered' : 'Est. Today', desc: 'Handover at doorstep with signature confirmation.', done: currentStep >= 5, current: currentStep === 5 }
-          ]
+          timeline: Array.isArray(o.trackingTimeline) && o.trackingTimeline.length > 0
+            ? o.trackingTimeline.map((ev, idx) => ({
+                title: ev.title,
+                time: ev.time,
+                desc: ev.note || ev.desc || '',
+                done: idx <= currentStep,
+                current: idx === currentStep - 1
+              }))
+            : [
+                { title: 'Order Confirmed', time: o.date || 'Today 10:00 AM', desc: 'Order received and verified.', done: currentStep >= 1, current: currentStep === 1 },
+                { title: 'Farm Harvested & Inspected', time: '11:00 AM', desc: 'Harvested from certified organic farm.', done: currentStep >= 2, current: currentStep === 2 },
+                { title: 'Packed in Eco Basket', time: '12:30 PM', desc: 'Sealed in insulated biodegradable packaging.', done: currentStep >= 3, current: currentStep === 3 },
+                { title: 'Out for Delivery', time: '01:45 PM', desc: 'Assigned to courier for immediate delivery.', done: currentStep >= 4, current: currentStep === 4 },
+                { title: 'Delivered to Doorstep', time: rawStatus === 'Delivered' ? 'Delivered' : 'Est. Today', desc: 'Handover at doorstep with signature confirmation.', done: currentStep >= 5, current: currentStep === 5 }
+              ]
         };
       });
 
@@ -219,15 +230,56 @@ export default function ParcelTracking({ onShopNow, initialOrderId }) {
     }
   };
 
-  // Auto-search initial order on mount if provided or default to GB-2026 for rich live preview
+  // Auto-search initial order on mount if provided or default to GB-1930
   useEffect(() => {
     if (initialOrderId) {
       setSearchInput(initialOrderId);
       handleSearch(initialOrderId);
     } else {
-      handleSearch('GB-2026');
+      handleSearch('GB-1930');
     }
   }, [initialOrderId]);
+
+  // Real-time synchronization with GreenBasket Admin Panel via BroadcastChannel & Cloud Gist
+  useEffect(() => {
+    let ch;
+    try {
+      ch = new BroadcastChannel('gb_bridge_channel');
+      ch.onmessage = (e) => {
+        if (e.data?.type === 'GB_ORDERS_UPDATED' || e.data?.type === 'GB_NEW_ORDER') {
+          if (activeOrder) {
+            handleSearch(activeOrder.id);
+          }
+        }
+      };
+    } catch (e) {}
+
+    const fetchCloudOrders = async () => {
+      try {
+        const res = await fetch('https://gist.githubusercontent.com/sazibkhan-me-6/5c3186e2427e5900031ae4ea398ac1e7/raw/greenbasket_catalog.json?_t=' + Date.now(), { cache: 'no-store' });
+        if (res.ok) {
+          const d = await res.json();
+          if (d && Array.isArray(d.orders) && d.orders.length > 0) {
+            localStorage.setItem('greenbasket_orders', JSON.stringify(d.orders));
+            if (activeOrder) {
+              const fresh = d.orders.find(o => o.id.toLowerCase() === activeOrder.id.toLowerCase());
+              if (fresh) {
+                handleSearch(fresh.id);
+              }
+            }
+          }
+        }
+      } catch (err) {}
+    };
+
+    fetchCloudOrders();
+    const pollInterval = setInterval(fetchCloudOrders, 3000);
+
+    return () => {
+      if (ch) ch.close();
+      clearInterval(pollInterval);
+    };
+  }, [activeOrder]);
 
   const copyTrackingId = (id) => {
     try {
