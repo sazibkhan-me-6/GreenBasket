@@ -14,7 +14,11 @@ export default function CategoriesView({
 }) {
   const categoryProducts = activeCategory === 'All'
     ? productsList
-    : productsList.filter(p => p.category.toLowerCase() === activeCategory.toLowerCase());
+    : productsList.filter(p => {
+        const c1 = (p.category || '').toLowerCase();
+        const c2 = (activeCategory || '').toLowerCase();
+        return c1 === c2 || c1.includes(c2) || c2.includes(c1);
+      });
 
   return (
     <div className="categories-page section-wrap">
@@ -26,7 +30,7 @@ export default function CategoriesView({
           <span className="current">Categories</span>
         </div>
         <h1>Browse by <em>Produce Category</em></h1>
-        <p>Explore our organic assortment by category. Select a collection below to filter our fresh harvest.</p>
+        <p>Explore our organic assortment by category. Click any category option below to immediately view and shop its fresh harvest.</p>
       </div>
 
       {/* Category Cards Showcase */}
@@ -34,7 +38,8 @@ export default function CategoriesView({
         <button
           type="button"
           className={`category-showcase-card ${activeCategory === 'All' ? 'active-showcase' : ''}`}
-          onClick={() => setActiveCategory('All')}
+          onClick={() => navigateTo('shop', 'All')}
+          title="Click to open all products"
         >
           <div className="showcase-img-wrap">
             <img
@@ -44,19 +49,27 @@ export default function CategoriesView({
           </div>
           <div className="showcase-info">
             <h3>All Collections</h3>
-            <p>Every fresh item from our local farms</p>
-            <span className="showcase-badge">{productsList.length} Items</span>
+            <p>Every fresh harvest from our local partner farms</p>
+            <div className="showcase-bottom-row">
+              <span className="showcase-badge">{productsList.length} Items</span>
+              <span className="showcase-cta">Open Products <ArrowRight size={13} /></span>
+            </div>
           </div>
         </button>
 
         {categories.map(cat => {
-          const count = productsList.filter(p => p.category.toLowerCase() === cat.name.toLowerCase()).length;
+          const count = productsList.filter(p => {
+            const c1 = (p.category || '').toLowerCase();
+            const c2 = (cat.name || '').toLowerCase();
+            return c1 === c2 || c1.includes(c2) || c2.includes(c1);
+          }).length;
           return (
             <button
               type="button"
               key={cat.name}
               className={`category-showcase-card ${activeCategory === cat.name ? 'active-showcase' : ''}`}
-              onClick={() => setActiveCategory(cat.name)}
+              onClick={() => navigateTo('shop', cat.name)}
+              title={`Click to open ${cat.name} products`}
             >
               <div className="showcase-img-wrap">
                 <img src={cat.image} alt={cat.name} />
@@ -64,7 +77,10 @@ export default function CategoriesView({
               <div className="showcase-info">
                 <h3>{cat.name}</h3>
                 <p>100% Certified organic & farm picked</p>
-                <span className="showcase-badge">{count || cat.count}</span>
+                <div className="showcase-bottom-row">
+                  <span className="showcase-badge">{count || cat.count}</span>
+                  <span className="showcase-cta">Open Products <ArrowRight size={13} /></span>
+                </div>
               </div>
             </button>
           );
@@ -85,10 +101,29 @@ export default function CategoriesView({
         <button
           type="button"
           className="heading-view-all-btn"
-          onClick={() => navigateTo('shop')}
+          onClick={() => navigateTo('shop', activeCategory)}
         >
           Open in Full Shop View <ArrowRight size={16} />
         </button>
+      </div>
+
+      {/* Category Pills Filter Row on Categories Page */}
+      <div className="filter-row" style={{ marginBottom: '18px' }}>
+        <button
+          className={activeCategory === 'All' ? 'filter active-filter' : 'filter'}
+          onClick={() => setActiveCategory('All')}
+        >
+          All produce ({productsList.length})
+        </button>
+        {categories.map(c => (
+          <button
+            key={c.name}
+            className={activeCategory === c.name ? 'filter active-filter' : 'filter'}
+            onClick={() => setActiveCategory(c.name)}
+          >
+            {c.name}
+          </button>
+        ))}
       </div>
 
       {/* Products Grid for Selected Category */}

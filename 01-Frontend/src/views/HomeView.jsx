@@ -160,7 +160,7 @@ export default function HomeView({
             <button
               className="category-card"
               key={cat.name}
-              onClick={() => navigateTo('categories', cat.name)}
+              onClick={() => navigateTo('shop', cat.name)}
             >
               <img src={cat.image} alt={cat.name} />
               <b>{cat.name}</b>

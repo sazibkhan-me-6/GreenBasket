@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   Leaf, Truck, Headphones, Search, UserRound, ShoppingCart, ArrowRight,
   ShieldCheck, Sprout, Heart, Menu, X, Star, CheckCircle2, Mail, Instagram,
-  Facebook, Youtube, Plus, Minus, Package
+  Facebook, Youtube, Plus, Minus, Package, ChevronDown
 } from 'lucide-react';
 import './styles.css';
 
@@ -49,6 +49,7 @@ function App() {
   // Multi-page routing view state: 'home' | 'shop' | 'categories' | 'deals' | 'track' | 'about' | 'contact'
   const [activeView, setActiveView] = useState(getInitialView);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [catDropdownOpen, setCatDropdownOpen] = useState(false);
   const [trackingOrderId, setTrackingOrderId] = useState('');
 
   // UI state
@@ -484,27 +485,58 @@ function App() {
           >
             Shop
           </button>
-          <button
-            type="button"
-            className={activeView === 'categories' ? 'active' : ''}
-            onClick={() => navigateTo('categories')}
+          {/* Categories with Dropdown Menu */}
+          <div
+            className="nav-dropdown-wrap"
+            onMouseEnter={() => setCatDropdownOpen(true)}
+            onMouseLeave={() => setCatDropdownOpen(false)}
           >
-            Categories
-          </button>
+            <button
+              type="button"
+              className={activeView === 'categories' ? 'active nav-dropdown-btn' : 'nav-dropdown-btn'}
+              onClick={() => {
+                setCatDropdownOpen(false);
+                navigateTo('categories');
+              }}
+            >
+              Categories <ChevronDown size={13} className={`chevron-icon ${catDropdownOpen ? 'rotated' : ''}`} />
+            </button>
+            {catDropdownOpen && (
+              <div className="nav-dropdown-menu">
+                <button
+                  type="button"
+                  className="nav-dropdown-item"
+                  onClick={() => {
+                    setCatDropdownOpen(false);
+                    navigateTo('shop', 'All');
+                  }}
+                >
+                  <span className="dropdown-dot">✦</span> All Categories
+                </button>
+                {categories.map((c) => (
+                  <button
+                    type="button"
+                    key={c.name}
+                    className="nav-dropdown-item"
+                    onClick={() => {
+                      setCatDropdownOpen(false);
+                      navigateTo('shop', c.name);
+                    }}
+                  >
+                    <img src={c.image} alt={c.name} className="dropdown-cat-thumb" />
+                    <span>{c.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <button
             type="button"
             className={activeView === 'deals' ? 'active' : ''}
             onClick={() => navigateTo('deals')}
           >
             Deals
-          </button>
-          {/* Prominent Public Parcel Tracking Button in Navigation */}
-          <button
-            type="button"
-            className={`nav-track-btn ${activeView === 'track' ? 'active active-track' : ''}`}
-            onClick={() => navigateTo('track')}
-          >
-            <Truck size={14} /> Track Parcel 📦
           </button>
           <button
             type="button"
