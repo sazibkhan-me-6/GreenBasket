@@ -1,4 +1,4 @@
-﻿// Mock Database & API Client using browser localStorage for instant reactivity
+// Mock Database & API Client using browser localStorage for instant reactivity
 import { initialProducts } from '../02-Products/products.js';
 
 const STORAGE_KEYS = {
@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
   USER: 'gb_current_user',
   CART: 'gb_cart',
   FAVORITES: 'gb_favorites',
+  ACCOUNTS: 'gb_registered_accounts', // stores registered customer credentials
 };
 
 // Safe localStorage helper
@@ -144,17 +145,60 @@ export const api = {
     return getStore(STORAGE_KEYS.USER, null);
   },
 
-  login: (email, password, role = 'customer', extraData = {}) => {
-    const user = {
-      email,
-      name: extraData.name || email.split('@')[0],
+  // Get all registered accounts
+  getAccounts: () => getStore(STORAGE_KEYS.ACCOUNTS, []),
+
+  // Register a new customer account — returns { ok, error, user }
+  register: (email, password, extraData = {}) => {
+    const accounts = api.getAccounts();
+    const emailLower = email.trim().toLowerCase();
+    const exists = accounts.find(a => a.email === emailLower);
+    if (exists) {
+      return { ok: false, error: 'এই Email দিয়ে আগেই অ্যাকাউন্ট খোলা আছে। Sign In করুন।' };
+    }
+    const newAccount = {
+      email: emailLower,
+      password, // stored as-is (mock; real app would hash)
+      name: extraData.name || emailLower.split('@')[0],
       phone: extraData.phone || '',
       address: extraData.address || '',
-      role: role === 'admin' ? 'admin' : (email.includes('admin') ? 'admin' : 'customer'),
+      createdAt: Date.now(),
+    };
+    setStore(STORAGE_KEYS.ACCOUNTS, [newAccount, ...accounts]);
+    // Auto sign-in after registration
+    const user = {
+      email: emailLower,
+      name: newAccount.name,
+      phone: newAccount.phone,
+      address: newAccount.address,
+      role: 'customer',
       token: 'jwt_mock_' + Date.now(),
     };
     setStore(STORAGE_KEYS.USER, user);
-    return user;
+    return { ok: true, user };
+  },
+
+  // Login — only allows registered accounts. Returns { ok, error, user }
+  login: (email, password) => {
+    const emailLower = email.trim().toLowerCase();
+    const accounts = api.getAccounts();
+    const account = accounts.find(a => a.email === emailLower);
+    if (!account) {
+      return { ok: false, error: 'এই Email দিয়ে কোনো অ্যাকাউন্ট নেই। আগে "New Account" থেকে রেজিস্ট্রেশন করুন।' };
+    }
+    if (account.password !== password) {
+      return { ok: false, error: 'পাসওয়ার্ড ভুল হয়েছে। আবার চেষ্টা করুন।' };
+    }
+    const user = {
+      email: account.email,
+      name: account.name,
+      phone: account.phone,
+      address: account.address,
+      role: 'customer',
+      token: 'jwt_mock_' + Date.now(),
+    };
+    setStore(STORAGE_KEYS.USER, user);
+    return { ok: true, user };
   },
 
   logout: () => {

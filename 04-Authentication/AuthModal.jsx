@@ -110,7 +110,11 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, currentUser
     const extraData = tab === 'register'
       ? { name: name.trim(), phone: phone.trim(), address: address.trim(), isNew: true }
       : {};
-    onLoginSuccess(email, password, 'customer', extraData);
+    const res = onLoginSuccess(email, password, 'customer', extraData, tab);
+    if (res && res.error) {
+      setError(res.error);
+      return;
+    }
     onClose();
   };
 

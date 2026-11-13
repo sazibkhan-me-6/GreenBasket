@@ -324,8 +324,19 @@ function App() {
     });
   };
 
-  const handleLoginSuccess = (userEmail, password, role, extraData = {}) => {
-    const user = api.login(userEmail, password, role, extraData);
+  const handleLoginSuccess = (userEmail, password, role, extraData = {}, actionTab = 'login') => {
+    let result;
+    if (actionTab === 'register' || extraData?.isNew) {
+      result = api.register(userEmail, password, extraData);
+    } else {
+      result = api.login(userEmail, password);
+    }
+
+    if (!result || !result.ok) {
+      return { error: result?.error || 'Authentication failed' };
+    }
+
+    const user = result.user;
     setCurrentUser(user);
     showToast(extraData?.isNew ? 'Account created successfully! Welcome to GreenBasket 🎉' : `Signed in as ${user.name}`);
 
