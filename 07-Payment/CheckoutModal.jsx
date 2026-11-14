@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { X, ShieldCheck, CheckCircle2, CreditCard, Banknote, Smartphone, Truck, ArrowRight, MapPin, LocateFixed, ExternalLink } from 'lucide-react';
+import { X, ShieldCheck, CheckCircle2, CreditCard, Banknote, Smartphone, Truck, ArrowRight, MapPin, LocateFixed, ExternalLink, Lock, UserCheck } from 'lucide-react';
 
-export default function CheckoutModal({ isOpen, onClose, cart, products, cartTotal, onOrderCompleted, currentUser }) {
+export default function CheckoutModal({ isOpen, onClose, cart, products, cartTotal, onOrderCompleted, currentUser, onRequireAuth }) {
   const [step, setStep] = useState('form'); // 'form' or 'success'
   const [completedOrder, setCompletedOrder] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('cod');
   const [isDetecting, setIsDetecting] = useState(false);
   const [detectedLocation, setDetectedLocation] = useState(null);
   const [formData, setFormData] = useState({
-    name: currentUser?.name || 'Sazib Ahmed',
-    phone: currentUser?.phone || '+880 1712-345678',
-    address: currentUser?.address || 'House #24, Road #4, Dhanmondi, Dhaka',
+    name: currentUser?.name || '',
+    phone: currentUser?.phone || '',
+    address: currentUser?.address || '',
     notes: 'Please call before delivery'
   });
 
@@ -119,6 +119,10 @@ export default function CheckoutModal({ isOpen, onClose, cart, products, cartTot
 
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
+    if (!currentUser) {
+      if (onRequireAuth) onRequireAuth();
+      return;
+    }
     setIsDetecting(true);
 
     // Auto-detect live Google Maps GPS location at the instant "Confirm & Place Order" is clicked
@@ -129,29 +133,22 @@ export default function CheckoutModal({ isOpen, onClose, cart, products, cartTot
       total: grandTotal.toFixed(2),
       customer: {
         ...formData,
-        email: currentUser?.email || '',
-        lat: loc.lat,
-        lng: loc.lng,
-        detectedArea: loc.detectedArea,
-        locationAccuracy: loc.locationAccuracy,
-        isLiveGps: loc.isLiveGps,
-        liveLocationDetectedAt: loc.liveLocationDetectedAt,
-        googleMapsUrl: loc.googleMapsUrl
+        email: currentUser?.email || ''
       },
-      lat: loc.lat,
-      lng: loc.lng,
-      detectedArea: loc.detectedArea,
-      locationAccuracy: loc.locationAccuracy,
-      isLiveGps: loc.isLiveGps,
-      liveLocationDetectedAt: loc.liveLocationDetectedAt,
-      googleMapsUrl: loc.googleMapsUrl,
-      paymentMethod: paymentMethod === 'cod' ? 'Cash on Delivery' : (paymentMethod === 'card' ? 'Credit/Debit Card' : 'Mobile Banking')
+      paymentMethod: paymentMethod === 'cod' ? 'Cash on Delivery' : (paymentMethod === 'card' ? 'Credit/Debit Card' : 'Mobile Banking'),
+      lat: loc?.lat || null,
+      lng: loc?.lng || null,
+      detectedArea: loc?.detectedArea || formData.address,
+      locationAccuracy: loc?.locationAccuracy || null,
+      isLiveGps: loc?.isLiveGps !== undefined ? loc.isLiveGps : false,
+      liveLocationDetectedAt: loc?.liveLocationDetectedAt || new Date().toISOString(),
+      googleMapsUrl: loc?.googleMapsUrl || (loc?.lat ? `https://www.google.com/maps?q=${loc.lat},${loc.lng}` : null)
     };
 
-    const order = onOrderCompleted(orderData);
-    setCompletedOrder({ ...order, ...loc });
-    setStep('success');
     setIsDetecting(false);
+    const order = onOrderCompleted(orderData);
+    setCompletedOrder(order);
+    setStep('success');
   };
 
   return (
@@ -184,6 +181,63 @@ export default function CheckoutModal({ isOpen, onClose, cart, products, cartTot
               <span style={{ fontSize: '10px', letterSpacing: '1px', color: '#56831d', fontWeight: 700 }}>CHECKOUT & PAYMENT</span>
               <h2 style={{ margin: '4px 0 0', fontFamily: 'Manrope, sans-serif', fontSize: '22px' }}>Complete Your Fresh Order</h2>
             </div>
+
+            {currentUser ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                background: '#f2f8eb',
+                border: '1px solid #cde4be',
+                padding: '10px 14px',
+                borderRadius: '12px',
+                marginBottom: '18px',
+                fontSize: '12px',
+                color: '#244813'
+              }}>
+                <UserCheck size={18} color="#457e17" style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <span>Ordering as <b>{currentUser.name}</b> ({currentUser.email})</span>
+                </div>
+              </div>
+            ) : (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                background: '#fdf5ea',
+                border: '1px solid #f4d3ab',
+                padding: '12px 14px',
+                borderRadius: '12px',
+                marginBottom: '18px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#824c0d', fontSize: '12px' }}>
+                  <Lock size={18} style={{ flexShrink: 0 }} />
+                  <span>অর্ডার করতে আগে অ্যাকাউন্ট সাইন ইন বা রেজিস্ট্রেশন আবশ্যক।</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    if (onRequireAuth) onRequireAuth();
+                  }}
+                  style={{
+                    background: '#3d6e15',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '7px 14px',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  Sign In / Register
+                </button>
+              </div>
+            )}
 
             <form onSubmit={handlePlaceOrder}>
               {/* Customer Information */}
@@ -223,10 +277,10 @@ export default function CheckoutModal({ isOpen, onClose, cart, products, cartTot
                   />
 
                   {/* Live Google Maps GPS Detection Indicator */}
-                  <div style={{ marginTop: '8px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '8px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#16a34a', display: 'inline-block', boxShadow: '0 0 0 3px rgba(34,197,94,0.2)' }} />
-                      <span style={{ fontSize: '11px', color: '#166534', fontWeight: 600 }}>
+                  <div style={{ marginTop: '8px', padding: '8px 10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#166534' }}>
+                      <MapPin size={13} color="#15803d" />
+                      <span>
                         {detectedLocation ? (
                           <>Live GPS: <b>{detectedLocation.lat}° N, {detectedLocation.lng}° E</b> ({detectedLocation.detectedArea.split(',')[0]})</>
                         ) : (
@@ -254,57 +308,57 @@ export default function CheckoutModal({ isOpen, onClose, cart, products, cartTot
                   <div 
                     onClick={() => setPaymentMethod('cod')}
                     style={{
-                      border: paymentMethod === 'cod' ? '2px solid #7cb52a' : '1px solid #d1dcc7',
-                      background: paymentMethod === 'cod' ? '#f0f8e3' : '#fff',
-                      borderRadius: '10px',
+                      border: paymentMethod === 'cod' ? '2px solid #56831d' : '1px solid #d1dcc7',
+                      background: paymentMethod === 'cod' ? '#f4f8ed' : '#fff',
                       padding: '12px 10px',
+                      borderRadius: '10px',
                       cursor: 'pointer',
                       textAlign: 'center'
                     }}
                   >
-                    <Banknote size={22} color="#457019" style={{ margin: '0 auto 6px' }}/>
-                    <b style={{ display: 'block', fontSize: '11px' }}>Cash on Delivery</b>
-                    <small style={{ fontSize: '9px', color: '#687761' }}>Pay upon receipt</small>
+                    <Banknote size={20} color={paymentMethod === 'cod' ? '#56831d' : '#697a61'} style={{ margin: '0 auto 4px' }}/>
+                    <b style={{ display: 'block', fontSize: '11px', color: '#1a3311' }}>Cash on Delivery</b>
+                    <small style={{ fontSize: '9px', color: '#74866c' }}>Pay when delivered</small>
+                  </div>
+
+                  <div 
+                    onClick={() => setPaymentMethod('bkash')}
+                    style={{
+                      border: paymentMethod === 'bkash' ? '2px solid #56831d' : '1px solid #d1dcc7',
+                      background: paymentMethod === 'bkash' ? '#f4f8ed' : '#fff',
+                      padding: '12px 10px',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      textAlign: 'center'
+                    }}
+                  >
+                    <Smartphone size={20} color={paymentMethod === 'bkash' ? '#56831d' : '#697a61'} style={{ margin: '0 auto 4px' }}/>
+                    <b style={{ display: 'block', fontSize: '11px', color: '#1a3311' }}>bKash / Nagad</b>
+                    <small style={{ fontSize: '9px', color: '#74866c' }}>Mobile payment</small>
                   </div>
 
                   <div 
                     onClick={() => setPaymentMethod('card')}
                     style={{
-                      border: paymentMethod === 'card' ? '2px solid #7cb52a' : '1px solid #d1dcc7',
-                      background: paymentMethod === 'card' ? '#f0f8e3' : '#fff',
-                      borderRadius: '10px',
+                      border: paymentMethod === 'card' ? '2px solid #56831d' : '1px solid #d1dcc7',
+                      background: paymentMethod === 'card' ? '#f4f8ed' : '#fff',
                       padding: '12px 10px',
+                      borderRadius: '10px',
                       cursor: 'pointer',
                       textAlign: 'center'
                     }}
                   >
-                    <CreditCard size={22} color="#457019" style={{ margin: '0 auto 6px' }}/>
-                    <b style={{ display: 'block', fontSize: '11px' }}>Debit / Credit Card</b>
-                    <small style={{ fontSize: '9px', color: '#687761' }}>Visa, MC, Amex</small>
-                  </div>
-
-                  <div 
-                    onClick={() => setPaymentMethod('mobile')}
-                    style={{
-                      border: paymentMethod === 'mobile' ? '2px solid #7cb52a' : '1px solid #d1dcc7',
-                      background: paymentMethod === 'mobile' ? '#f0f8e3' : '#fff',
-                      borderRadius: '10px',
-                      padding: '12px 10px',
-                      cursor: 'pointer',
-                      textAlign: 'center'
-                    }}
-                  >
-                    <Smartphone size={22} color="#457019" style={{ margin: '0 auto 6px' }}/>
-                    <b style={{ display: 'block', fontSize: '11px' }}>Mobile Banking</b>
-                    <small style={{ fontSize: '9px', color: '#687761' }}>bKash / Nagad</small>
+                    <CreditCard size={20} color={paymentMethod === 'card' ? '#56831d' : '#697a61'} style={{ margin: '0 auto 4px' }}/>
+                    <b style={{ display: 'block', fontSize: '11px', color: '#1a3311' }}>Card Payment</b>
+                    <small style={{ fontSize: '9px', color: '#74866c' }}>Visa / MasterCard</small>
                   </div>
                 </div>
               </div>
 
-              {/* Order summary breakdown */}
-              <div style={{ background: '#f2f6ec', borderRadius: '12px', padding: '14px', marginBottom: '20px' }}>
+              {/* Order Summary mini */}
+              <div style={{ background: '#f4f7ee', padding: '14px', borderRadius: '12px', marginBottom: '18px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px' }}>
-                  <span style={{ color: '#55664d' }}>Basket items ({cartItems.reduce((acc, i) => acc + i.qty, 0)})</span>
+                  <span style={{ color: '#55664d' }}>Items Subtotal</span>
                   <b>${cartTotal.toFixed(2)}</b>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '8px' }}>
@@ -317,18 +371,32 @@ export default function CheckoutModal({ isOpen, onClose, cart, products, cartTot
                 </div>
               </div>
 
-              <button 
-                type="submit" 
-                disabled={isDetecting}
-                className="btn btn-primary"
-                style={{ width: '100%', padding: '13px', fontSize: '14px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-              >
-                {isDetecting ? (
-                  <>Detecting Google Maps Location & Placing Order... <LocateFixed size={17} /></>
-                ) : (
-                  <>Confirm & Place Order <ArrowRight size={17}/></>
-                )}
-              </button>
+              {currentUser ? (
+                <button 
+                  type="submit" 
+                  disabled={isDetecting}
+                  className="btn btn-primary"
+                  style={{ width: '100%', padding: '13px', fontSize: '14px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                >
+                  {isDetecting ? (
+                    <>Detecting Google Maps Location & Placing Order... <LocateFixed size={17} /></>
+                  ) : (
+                    <>Confirm & Place Order <ArrowRight size={17}/></>
+                  )}
+                </button>
+              ) : (
+                <button 
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    if (onRequireAuth) onRequireAuth();
+                  }}
+                  className="btn btn-primary"
+                  style={{ width: '100%', padding: '13px', fontSize: '14px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#305915' }}
+                >
+                  <Lock size={16} /> Sign In to Place Order
+                </button>
+              )}
             </form>
           </div>
         ) : (
@@ -409,10 +477,9 @@ export default function CheckoutModal({ isOpen, onClose, cart, products, cartTot
             </div>
 
             <button 
-              type="button" 
-              className="btn btn-primary" 
               onClick={onClose}
-              style={{ width: '100%', padding: '12px' }}
+              className="btn btn-primary"
+              style={{ padding: '11px 24px', fontSize: '13px' }}
             >
               Continue Shopping
             </button>

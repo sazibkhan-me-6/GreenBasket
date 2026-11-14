@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ShoppingCart, Plus, Minus, ArrowRight, ShieldCheck, Tag } from 'lucide-react';
+import { X, ShoppingCart, Plus, Minus, ArrowRight, ShieldCheck, Tag, Lock } from 'lucide-react';
 
 export default function CartDrawer({
   isOpen,
@@ -10,7 +10,9 @@ export default function CartDrawer({
   cartTotal,
   onChangeQty,
   onOpenCheckout,
-  storeSettings
+  storeSettings,
+  currentUser,
+  onRequireAuth
 }) {
   const [promoCode, setPromoCode] = useState('');
   const [discountPercent, setDiscountPercent] = useState(0);
@@ -162,15 +164,28 @@ export default function CartDrawer({
                 <b>${finalTotal.toFixed(2)}</b>
               </div>
 
-              <button 
-                className="btn btn-primary checkout-btn" 
-                onClick={() => {
-                  onClose();
-                  onOpenCheckout();
-                }}
-              >
-                Proceed to Checkout <ArrowRight size={17}/>
-              </button>
+              {currentUser ? (
+                <button 
+                  className="btn btn-primary checkout-btn" 
+                  onClick={() => {
+                    onClose();
+                    onOpenCheckout();
+                  }}
+                >
+                  Proceed to Checkout <ArrowRight size={17}/>
+                </button>
+              ) : (
+                <button 
+                  className="btn btn-primary checkout-btn" 
+                  onClick={() => {
+                    onClose();
+                    if (onRequireAuth) onRequireAuth();
+                  }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                >
+                  <Lock size={16}/> Sign In to Checkout
+                </button>
+              )}
               <small className="checkout-note">
                 <ShieldCheck size={14}/> Secure checkout
               </small>

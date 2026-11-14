@@ -970,8 +970,20 @@ function App() {
         cartCount={cartCount}
         cartTotal={cartTotal}
         onChangeQty={changeQty}
-        onOpenCheckout={() => setCheckoutOpen(true)}
+        onOpenCheckout={() => {
+          if (!currentUser) {
+            setAuthOpen(true);
+            showToast('অর্ডার করতে দয়া করে আগে সাইন ইন বা অ্যাকাউন্ট তৈরি করুন');
+          } else {
+            setCheckoutOpen(true);
+          }
+        }}
         storeSettings={storeSettings}
+        currentUser={currentUser}
+        onRequireAuth={() => {
+          setAuthOpen(true);
+          showToast('অর্ডার করতে দয়া করে আগে সাইন ইন বা অ্যাকাউন্ট তৈরি করুন');
+        }}
       />
 
       {/* Checkout & Payment Modal */}
@@ -983,6 +995,11 @@ function App() {
         cartTotal={cartTotal}
         onOrderCompleted={handleOrderCompleted}
         currentUser={currentUser}
+        onRequireAuth={() => {
+          setCheckoutOpen(false);
+          setAuthOpen(true);
+          showToast('অর্ডার করতে দয়া করে আগে সাইন ইন বা অ্যাকাউন্ট তৈরি করুন');
+        }}
       />
 
       {/* Authentication Modal */}
