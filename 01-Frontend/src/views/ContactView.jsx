@@ -43,6 +43,56 @@ export default function ContactView({ navigateTo, onShowToast, storeSettings }) 
     }
     setSubmitted(true);
     onShowToast('Your message has been sent! Our support team will reply within 2 hours. 🌿');
+
+    // Sync to Admin Panel Customer Support & Tickets
+    try {
+      const ticketId = `TKT-${Math.floor(200 + Math.random() * 800)}`;
+      const newMsg = {
+        id: `msg-${Date.now()}`,
+        sender: 'customer',
+        senderName: formData.name.trim(),
+        text: formData.message.trim(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+
+      const newTicket = {
+        id: ticketId,
+        customer: formData.name.trim(),
+        phone: formData.phone.trim() || '+880 1714-703406',
+        email: formData.email.trim(),
+        orderId: '',
+        channel: 'Website Form',
+        category: formData.subject || 'Order & Delivery',
+        priority: 'High',
+        status: 'Open',
+        subject: `${formData.subject}: ${formData.message.slice(0, 35)}`,
+        assignedAgent: 'Farhana Akter',
+        createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) + ' ' + newMsg.time,
+        updatedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) + ' ' + newMsg.time,
+        messages: [newMsg]
+      };
+
+      const raw = localStorage.getItem('greenbasket_support_tickets');
+      const tickets = raw ? JSON.parse(raw) : [];
+      const updatedTickets = [newTicket, ...tickets];
+      localStorage.setItem('greenbasket_support_tickets', JSON.stringify(updatedTickets));
+
+      const ch = new BroadcastChannel('gb_bridge_channel');
+      ch.postMessage({
+        type: 'GB_CUSTOMER_SUPPORT_MESSAGE',
+        ticketId: ticketId,
+        customer: {
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim()
+        },
+        message: newMsg,
+        subject: newTicket.subject,
+        supportTickets: updatedTickets
+      });
+      ch.close();
+    } catch (err) {}
+
     setTimeout(() => {
       setFormData({
         name: '',

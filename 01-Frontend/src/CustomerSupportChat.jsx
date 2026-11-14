@@ -168,12 +168,59 @@ function getSmartReply(userQuery, products = [], storeSettings = {}) {
     : 'Thank you for reaching out! Please feel free to ask about any GreenBasket products, pricing, stock, orders, delivery, or account services, or call our 24/7 hotline directly at +880 1712-345678.';
 }
 
+const playChime = () => {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.12, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.25);
+  } catch (e) {}
+};
+
 export default function CustomerSupportChat({ currentUser, products = [], storeSettings = {} }) {
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(1);
   const [input, setInput] = useState('');
-  // In-memory messages only: completely cleared on chat close or page reload
-  const [messages, setMessages] = useState([INITIAL_MESSAGE]);
+  const [ticketId, setTicketId] = useState(() => {
+    try {
+      const saved = localStorage.getItem('gb_customer_chat_ticket_id');
+      if (saved) return saved;
+      const newId = `TKT-LIVE-${Math.floor(100 + Math.random() * 900)}`;
+      localStorage.setItem('gb_customer_chat_ticket_id', newId);
+      return newId;
+    } catch (e) {
+      return 'TKT-LIVE-101';
+    }
+  });
+
+  const [messages, setMessages] = useState(() => {
+    try {
+      const raw = localStorage.getItem('greenbasket_support_tickets');
+      if (raw) {
+        const tickets = JSON.parse(raw);
+        const curId = localStorage.getItem('gb_customer_chat_ticket_id');
+        const found = tickets.find(t => t.id === curId);
+        if (found && Array.isArray(found.messages) && found.messages.length > 0) {
+          return found.messages.map(m => ({
+            id: m.id || Math.random(),
+            sender: m.sender === 'agent' ? 'support' : 'user',
+            name: m.senderName || (m.sender === 'agent' ? 'Support Agent' : 'You'),
+            text: m.text,
+            time: m.time || 'Just now'
+          }));
+        }
+      }
+    } catch (e) {}
+    return [INITIAL_MESSAGE];
+  });
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
 
@@ -181,15 +228,42 @@ export default function CustomerSupportChat({ currentUser, products = [], storeS
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
+  // Real-time synchronization with Admin Panel Customer Support
+  useEffect(() => {
+    let ch;
+    try {
+      ch = new BroadcastChannel('gb_bridge_channel');
+      ch.onmessage = (e) => {
+        if (!e.data || typeof e.data !== 'object') return;
+        if (e.data.type === 'GB_SUPPORT_MESSAGE_SENT' && e.data.ticketId === ticketId) {
+          const newMsg = e.data.message;
+          setMessages((prev) => {
+            if (prev.some(m => m.id === newMsg.id)) return prev;
+            playChime();
+            if (!isOpen) {
+              setUnreadCount(c => c + 1);
+            }
+            return [...prev, {
+              id: newMsg.id || Date.now(),
+              sender: 'support',
+              name: newMsg.senderName || 'Farhana Akter (Admin Support)',
+              text: newMsg.text,
+              time: newMsg.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }];
+          });
+        }
+      };
+    } catch (err) {}
+    return () => { if (ch) ch.close(); };
+  }, [ticketId, isOpen]);
+
   const handleOpen = () => {
     setIsOpen(true);
     setUnreadCount(0);
   };
 
-  // Close chat AND reset chat history completely
   const handleClose = () => {
     setIsOpen(false);
-    setMessages([INITIAL_MESSAGE]);
     setInput('');
     setIsTyping(false);
     setUnreadCount(0);
@@ -210,6 +284,66 @@ export default function CustomerSupportChat({ currentUser, products = [], storeS
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
+
+    // Sync to Admin Panel via BroadcastChannel & LocalStorage
+    try {
+      const raw = localStorage.getItem('greenbasket_support_tickets');
+      let tickets = raw ? JSON.parse(raw) : [];
+      const foundIdx = tickets.findIndex(t => t.id === ticketId);
+
+      const newAdminMsg = {
+        id: `msg-${userMsg.id}`,
+        sender: 'customer',
+        senderName: userMsg.name,
+        text: userMsg.text,
+        time: userMsg.time
+      };
+
+      if (foundIdx >= 0) {
+        tickets[foundIdx] = {
+          ...tickets[foundIdx],
+          customer: userMsg.name,
+          status: 'Open',
+          updatedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) + ' ' + userMsg.time,
+          messages: [...(tickets[foundIdx].messages || []), newAdminMsg]
+        };
+      } else {
+        const newTicket = {
+          id: ticketId,
+          customer: userMsg.name,
+          phone: currentUser?.phone || storeSettings?.storePhone || '+880 1714-703406',
+          email: currentUser?.email || 'customer@greenbasket.com',
+          orderId: '',
+          channel: 'Website Live Chat',
+          category: 'Order & Delivery',
+          priority: 'High',
+          status: 'Open',
+          subject: `Live Web Chat: ${query.slice(0, 35)}`,
+          assignedAgent: 'Farhana Akter',
+          createdAt: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) + ' ' + userMsg.time,
+          updatedAt: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) + ' ' + userMsg.time,
+          messages: [newAdminMsg]
+        };
+        tickets = [newTicket, ...tickets];
+      }
+
+      localStorage.setItem('greenbasket_support_tickets', JSON.stringify(tickets));
+
+      const ch = new BroadcastChannel('gb_bridge_channel');
+      ch.postMessage({
+        type: 'GB_CUSTOMER_SUPPORT_MESSAGE',
+        ticketId: ticketId,
+        customer: {
+          name: userMsg.name,
+          email: currentUser?.email || 'customer@greenbasket.com',
+          phone: currentUser?.phone || ''
+        },
+        message: newAdminMsg,
+        subject: `Live Web Chat: ${query.slice(0, 35)}`,
+        supportTickets: tickets
+      });
+      ch.close();
+    } catch (e) {}
 
     setTimeout(() => {
       const replyText = getSmartReply(query, products, storeSettings);
