@@ -5,84 +5,130 @@ const INITIAL_MESSAGE = {
   id: 1,
   sender: 'support',
   name: 'GreenBasket Support',
-  text: 'স্বাগতম! 🌱 Welcome to GreenBasket Live Support. আপনার অর্ডার, পণ্য বা যেকোনো বিষয়ে বাংলা বা ইংরেজিতে প্রশ্ন করতে পারেন। How can we assist you today?',
+  text: 'স্বাগতম! 🌱 Welcome to GreenBasket Live Support. আপনি বাংলা বা ইংরেজিতে যেকোনো পণ্য, অর্ডার বা ওয়েবসাইট সম্পর্কিত প্রশ্ন করতে পারেন। How can we assist you today?',
   time: 'Just now'
 };
 
-// Bilingual smart responses (Bangla & English)
+// Security guard: Check for confidential/internal/admin inquiries
+function isRestrictedQuery(text) {
+  const restrictedKeywords = [
+    'admin', 'password', 'token', 'secret', 'gist', 'api key', 'apikey', 'database', 'backend',
+    'source code', 'credentials', 'bypass', 'hack', 'internal', 'server', 'env', 'github token',
+    'developer', 'root', 'login as admin', 'এডমিন', 'পাসওয়ার্ড', 'টোকেন', 'গোপন', 'ডাটাবেজ',
+    'সার্ভার', 'ব্যাকএন্ড', 'সোর্স কোড', 'অ্যাডমিন', 'লগইন তথ্য', 'সিক্রেট'
+  ];
+  const q = text.toLowerCase();
+  return restrictedKeywords.some(k => q.includes(k));
+}
+
+// Comprehensive bilingual responder tailored specifically to GreenBasket
 function getSmartReply(userQuery) {
   const q = userQuery.toLowerCase().trim();
 
-  // English detection
+  // 1. Detect language (Check for Bangla Unicode block)
   const isBangla = /[\u0980-\u09FF]/.test(userQuery);
 
-  // 1. Order Tracking / ট্র্যাক
-  if (q.includes('track') || q.includes('ট্র্যাক') || q.includes('order status') || q.includes('আমার অর্ডার') || q.includes('parcel')) {
+  // 2. Strict Security Boundary: Refuse hidden, confidential, internal or admin system inquiries
+  if (isRestrictedQuery(userQuery)) {
     return isBangla
-      ? '📦 আপনার অর্ডার ট্র্যাক করতে ওয়েবসাইটের উপরে "Track Parcel Live" বাটনে ক্লিক করুন অথবা আপনার Order ID (যেমন: GB-1001) লিখে সার্চ করুন। আপনি রিয়েল-টাইম জিপিএস ম্যাপেও পার্সেল দেখতে পাবেন।'
-      : '📦 To track your order, click the "Track Parcel Live" button at the top of the website or search using your Order ID (e.g., GB-1001). You can also view live GPS tracking on the map.';
+      ? '🔒 দুঃখিত, নিরাপত্তা ও গোপনীয়তা বিধিমালার কারণে সিস্টেমের অভ্যন্তরীণ বা অ্যাডমিন সংক্রান্ত তথ্য প্রকাশ করা সম্ভব নয়। সাধারণ পণ্য, অর্ডার বা ডেলিভারি বিষয়ে যেকোনো তথ্যের জন্য আমরা আপনাকে সাহায্য করতে পারি।'
+      : '🔒 I apologize, but due to security and privacy policies, internal system architecture and administrative details cannot be shared. We are gladly here to assist you with products, orders, shipping, and store services.';
   }
 
-  // 2. Delivery Fee / ডেলিভারি চার্জ
-  if (q.includes('delivery fee') || q.includes('shipping') || q.includes('charge') || q.includes('cost') || q.includes('ডেলিভারি চার্জ') || q.includes('চার্জ') || q.includes('ভাড়া')) {
+  // 3. Greetings & Courtesy
+  if (/^(hi|hello|hey|good morning|good evening|good afternoon|hola)\b/i.test(q) || /^(হাই|হ্যালো|সালাম|নমস্কার|কেমন আছেন)/i.test(q)) {
     return isBangla
-      ? '🚚 গ্রিন বাস্কেটে $49 বা তার বেশি অর্ডারে সারা দেশে ডেলিভারি সম্পূর্ণ ফ্রি! আর $49-এর নিচে স্ট্যান্ডার্ড ডেলিভারি চার্জ মাত্র $4.99।'
-      : '🚚 At GreenBasket, delivery is 100% FREE on all orders over $49! For orders below $49, the standard delivery fee is just $4.99.';
+      ? '👋 হ্যালো! GreenBasket-এ আপনাকে স্বাগতম। আপনি তাজা শাকসবজি, ফলমূল, অর্ডার ট্র্যাক বা ডেলিভারি সম্পর্কে যা জানতে চান বলুন।'
+      : '👋 Hello! Welcome to GreenBasket. How can we help you today with our organic harvest, order tracking, or delivery?';
   }
 
-  // 3. Delivery Time / কত সময় লাগে
-  if (q.includes('how long') || q.includes('time') || q.includes('when') || q.includes('সময়') || q.includes('কখন') || q.includes('কবে')) {
+  if (q.includes('thank') || q.includes('ধন্যবাদ') || q.includes('tnx') || q.includes('thx')) {
     return isBangla
-      ? '⚡ ঢাকা মেট্রোপলিটন এলাকায় সেম-ডে অথবা ১২ থেকে ২৪ ঘণ্টার মধ্যে সুপার-ফ্রেশ ডেলিভারি সম্পন্ন হয়। অন্যান্য এলাকায় ১-২ দিনের মধ্যে পৌঁছে দেওয়া হয়।'
-      : '⚡ In Dhaka Metro, we ensure same-day or 12–24 hour super-fresh delivery. For other areas, it takes 1–2 business days.';
+      ? 'আপনাকেও অনেক ধন্যবাদ! GreenBasket-এর সাথেই থাকুন, সুস্থ ও সতেজ থাকুন। 🌱'
+      : 'You are very welcome! Thank you for choosing GreenBasket. Stay healthy and fresh! 🌱';
   }
 
-  // 4. Payment Methods / পেমেন্ট
-  if (q.includes('payment') || q.includes('pay') || q.includes('bkash') || q.includes('nagad') || q.includes('cash') || q.includes('পেমেন্ট') || q.includes('বিকাশ') || q.includes('নগদ') || q.includes('টাকা')) {
+  // 4. Order Tracking & Parcel Location
+  if (q.includes('track') || q.includes('parcel') || q.includes('order status') || q.includes('where is my order') || q.includes('ট্র্যাক') || q.includes('পার্সেল') || q.includes('অর্ডার কোথায়') || q.includes('অর্ডারের অবস্থা')) {
     return isBangla
-      ? '💳 আমাদের রয়েছে ক্যাশ অন ডেলিভারি (Cash on Delivery), বিকাশ (bKash), নগদ (Nagad) এবং ভিসা/মাস্টারকার্ড অনলাইন পেমেন্টের সহজ সুবিধা।'
-      : '💳 We accept Cash on Delivery (COD), bKash, Nagad, as well as Visa & MasterCard online card payments.';
+      ? '📦 আপনার অর্ডার ট্র্যাক করতে ওয়েবসাইটের উপরে থাকা "Track Parcel Live" বাটনে ক্লিক করুন অথবা আপনার Order ID (যেমন: GB-1001) দিয়ে সার্চ করুন। আপনি সরাসরি Google Maps-এ লাইভ লোকেশনও দেখতে পাবেন।'
+      : '📦 To track your parcel, please click the "Track Parcel Live" button at the top header or search with your Order ID (e.g., GB-1001). You can also view live Google Maps GPS tracking for your delivery.';
   }
 
-  // 5. Freshness / Quality / অর্গানিক
-  if (q.includes('fresh') || q.includes('organic') || q.includes('quality') || q.includes('ফ্রেশ') || q.includes('অর্গানিক') || q.includes('তাজা') || q.includes('খামার')) {
+  // 5. How to place an order / Ordering Rules
+  if (q.includes('how to order') || q.includes('place order') || q.includes('order kivabe') || q.includes('অর্ডার কিভাবে') || q.includes('অর্ডার করব কিভাবে') || q.includes('অর্ডার দিতে চাই')) {
     return isBangla
-      ? '🌿 আমাদের সকল সবজি ও ফল ১০০% সার্টিফাইড অর্গানিক খামার থেকে সরাসরি সংগ্রহ করা হয় এবং হাইজেনিক কোল্ড-প্যাকিংয়ের মাধ্যমে সম্পূর্ণ পুষ্টিমান অক্ষুণ্ণ রাখা হয়।'
-      : '🌿 All our produce is 100% certified organic, harvested directly from verified local farms and hygienically packed to preserve maximum crispness and nutrients.';
+      ? '🛒 অর্ডার করার নিয়ম খুবই সহজ:\n১. পছন্দমতো সবজি বা ফল কার্টে যোগ করুন।\n২. কার্ট ওপেন করে "Sign In to Checkout"-এ ক্লিক করে আপনার অ্যাকাউন্ট লগইন বা তৈরি করুন।\n৩. ডেলিভারি ঠিকানা ও ফোন নম্বর দিয়ে ক্যাশ অন ডেলিভারি বা অনলাইনে পেমেন্ট নিশ্চিত করুন।'
+      : '🛒 How to order:\n1. Add your desired fresh produce to the cart.\n2. Open your cart and click "Sign In to Checkout" to login or register.\n3. Enter your delivery address & phone number, choose your payment method, and confirm your order!';
   }
 
-  // 6. Discount / Promo Code / অফার
-  if (q.includes('discount') || q.includes('promo') || q.includes('coupon') || q.includes('offer') || q.includes('ছাড়') || q.includes('অফার') || q.includes('ডিসকাউন্ট')) {
+  // 6. Delivery Fees & Free Shipping
+  if (q.includes('delivery fee') || q.includes('shipping fee') || q.includes('delivery charge') || q.includes('shipping charge') || q.includes('ডেলিভারি চার্জ') || q.includes('শিপিং') || q.includes('ডেলিভারি খরচ')) {
     return isBangla
-      ? '🎉 স্পেশাল অফার! চেকআউটে প্রোমোকোড "GREEN20" ব্যবহার করলেই পেয়ে যাবেন ফ্ল্যাট ২০% ইনস্ট্যান্ট ডিসকাউন্ট!'
-      : '🎉 Special Offer! Use promo code "GREEN20" at checkout to get a flat 20% instant discount!';
+      ? '🚚 গ্রিন বাস্কেটে $49 বা তার বেশি মূল্যের অর্ডারে সারা দেশে ডেলিভারি সম্পূর্ণ ফ্রি! আর $49-এর কম অর্ডারে ডেলিভারি চার্জ মাত্র $4.99।'
+      : '🚚 At GreenBasket, delivery is 100% FREE on all orders of $49 or more! For orders below $49, standard delivery is only $4.99.';
   }
 
-  // 7. Contact / Helpline / Phone / যোগাযোগ
-  if (q.includes('contact') || q.includes('phone') || q.includes('call') || q.includes('number') || q.includes('হেল্প') || q.includes('ফোন') || q.includes('যোগাযোগ') || q.includes('নাম্বার')) {
+  // 7. Delivery Time & Speed
+  if (q.includes('delivery time') || q.includes('how long') || q.includes('when will i get') || q.includes('কত সময়') || q.includes('কখন পাব') || q.includes('কবে আসবে') || q.includes('ডেলিভারি হতে কত দিন')) {
     return isBangla
-      ? '📞 আমাদের হেল্পলাইন ২৪/৭ খোলা: +880 1712-345678। এছাড়া সাপোর্ট ইমেইল: support@greenbasket.org।'
-      : '📞 Our 24/7 hotline is +880 1712-345678. You can also reach our support team at support@greenbasket.org.';
+      ? '⚡ ঢাকা শহরের মধ্যে সেম-ডে অথবা ১২–২৪ ঘণ্টার ভেতর দ্রুত ও সতেজ ডেলিভারি পৌঁছে দেওয়া হয়। অন্যান্য এলাকায় ১–২ কার্যদিবসের মধ্যে ডেলিভারি সম্পন্ন হয়।'
+      : '⚡ In Dhaka city, we deliver within 12 to 24 hours (same-day delivery available). For outer regions, delivery usually takes 1 to 2 business days.';
   }
 
-  // 8. Greetings
-  if (q.includes('hello') || q.includes('hi') || q.includes('hey') || q.includes('হ্যালো') || q.includes('হাই') || q.includes('সালাম') || q.includes('salam')) {
+  // 8. Payment Methods
+  if (q.includes('payment') || q.includes('bkash') || q.includes('nagad') || q.includes('cash on delivery') || q.includes('card') || q.includes('পেমেন্ট') || q.includes('বিকাশ') || q.includes('নগদ') || q.includes('টাকা পরিশোধ')) {
     return isBangla
-      ? '👋 হ্যালো! GreenBasket-এ আপনাকে স্বাগতম। আজ আপনাকে কীভাবে সহায়তা করতে পারি?'
-      : '👋 Hello! Welcome to GreenBasket. How can we help you today?';
+      ? '💳 আমরা গ্রহণ করি:\n• ক্যাশ অন ডেলিভারি (পণ্য পেয়ে নগদ টাকা দিন)\n• বিকাশ (bKash) ও নগদ (Nagad)\n• ভিসা ও মাস্টারকার্ড (Debit/Credit Card)।'
+      : '💳 Accepted Payment Methods:\n• Cash on Delivery (COD — pay upon arrival)\n• bKash & Nagad mobile banking\n• Visa & MasterCard debit/credit cards.';
   }
 
-  // Fallback
+  // 9. Discounts, Coupons & Promo Codes
+  if (q.includes('discount') || q.includes('promo') || q.includes('coupon') || q.includes('offer') || q.includes('অফার') || q.includes('ডিসকাউন্ট') || q.includes('কুপন') || q.includes('ছাড়')) {
+    return isBangla
+      ? '🎉 স্পেশাল প্রোমো কোড: চেকআউটে "GREEN20" ব্যবহার করলে পাবেন ফ্ল্যাট ২০% ইনস্ট্যান্ট ডিসকাউন্ট! এছাড়া হোমপেজের Deals সেকশনে প্রতিদিনের বিশেষ ছাড় দেখতে পারেন।'
+      : '🎉 Special Promo Code: Enter coupon code "GREEN20" at checkout for a flat 20% instant discount! You can also check our "Deals" page for daily flash savings.';
+  }
+
+  // 10. Organic Quality & Freshness Guarantee
+  if (q.includes('organic') || q.includes('fresh') || q.includes('quality') || q.includes('farm') || q.includes('অর্গানিক') || q.includes('তাজা') || q.includes('খামার') || q.includes('গুণগত মান')) {
+    return isBangla
+      ? '🌱 আমাদের প্রতিটি পণ্য ১০০% সার্টিফাইড রাসায়নিকমুক্ত অর্গানিক খামার থেকে ভোরের আলোয় তোলা হয় এবং বিশেষ তাপমাত্রা নিয়ন্ত্রিত প্যাকেজিংয়ে সরবরাহ করা হয়।'
+      : '🌱 Every item is 100% certified pesticide-free organic, harvested fresh at dawn from partnered local farms and delivered under strict hygienic standards.';
+  }
+
+  // 11. Return & Refund Policy
+  if (q.includes('return') || q.includes('refund') || q.includes('damaged') || q.includes('নষ্ট') || q.includes('রিটার্ন') || q.includes('ফেরত') || q.includes('পচা')) {
+    return isBangla
+      ? '🔄 আমাদের রয়েছে ইন্সট্যান্ট রিটার্ন পলিসি। ডেলিভারি গ্রহণের সময় পণ্যের মানে কোনো ত্রুটি পেলে সাথে সাথে রাইডারকে ফেরত দিতে পারেন অথবা ২৪ ঘণ্টার মধ্যে হেল্পলাইনে জানালে ফুল রিফান্ড বা রিপ্লেসমেন্ট প্রদান করা হবে।'
+      : '🔄 We offer a 100% fresh satisfaction guarantee. If any produce is damaged or below standard upon arrival, hand it back to the rider or contact our helpline within 24 hours for an instant replacement or full refund.';
+  }
+
+  // 12. Account & Registration Assistance
+  if (q.includes('account') || q.includes('register') || q.includes('sign in') || q.includes('login') || q.includes('সাইন ইন') || q.includes('অ্যাকাউন্ট') || q.includes('লগইন')) {
+    return isBangla
+      ? '👤 অ্যাকাউন্টে প্রবেশ করতে ওয়েবসাইটের উপরের "Account" বাটনে ক্লিক করুন। নতুন হলে "New Account" ট্যাবে নাম, ফোন ও ঠিকানা দিয়ে সহজে নিবন্ধন করে অর্ডার করতে পারবেন।'
+      : '👤 To access your account, click the "Account" button in the top navigation. New customers can register in seconds by selecting the "New Account" tab.';
+  }
+
+  // 13. Helpline & Contact Info
+  if (q.includes('contact') || q.includes('helpline') || q.includes('phone') || q.includes('call') || q.includes('email') || q.includes('ঠিকানা') || q.includes('যোগাযোগ') || q.includes('ফোন')) {
+    return isBangla
+      ? '📞 আমাদের কাস্টমার হেল্পলাইন: +880 1712-345678 (২৪/৭ খোলা)\n✉️ ইমেইল: support@greenbasket.org\n📍 প্রধান কার্যালয়: ধানমন্ডি, ঢাকা, বাংলাদেশ।'
+      : '📞 Customer Helpline: +880 1712-345678 (24/7 Support)\n✉️ Email: support@greenbasket.org\n📍 Head Office: Dhanmondi, Dhaka, Bangladesh.';
+  }
+
+  // 14. Intelligent Fallback
   return isBangla
-    ? 'ধন্যবাদ আপনার বার্তার জন্য! আমাদের একজন কাস্টমার কেয়ার প্রতিনিধি খুব শীঘ্রই আপনার সাথে যোগাযোগ করবেন। জরুরি প্রয়োজনে আমাদের হটলাইন +880 1712-345678-এ সরাসরি কল করতে পারেন।'
-    : 'Thank you for your message! A customer care specialist has been notified. For urgent assistance, please call our hotline directly at +880 1712-345678.';
+    ? 'ধন্যবাদ আপনার বার্তার জন্য! GreenBasket ওয়েবসাইটের পণ্য, অর্ডার, ডেলিভারি বা সার্ভিস সম্পর্কে জানতে চাইলে একটু বিস্তারিত লিখুন, অথবা আমাদের ২৪/৭ হেল্পলাইন +880 1712-345678-এ সরাসরি কল করতে পারেন।'
+    : 'Thank you for reaching out! Please feel free to ask any questions about GreenBasket products, orders, delivery, or account services, or call our 24/7 hotline directly at +880 1712-345678.';
 }
 
 export default function CustomerSupportChat({ currentUser }) {
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(1);
   const [input, setInput] = useState('');
-  // In-memory messages only: resets on page reload and on chat close
+  // In-memory messages only: completely cleared on chat close or page reload
   const [messages, setMessages] = useState([INITIAL_MESSAGE]);
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
@@ -132,7 +178,7 @@ export default function CustomerSupportChat({ currentUser }) {
       };
       setMessages(prev => [...prev, botMsg]);
       setIsTyping(false);
-    }, 750);
+    }, 700);
   };
 
   return (
@@ -360,16 +406,17 @@ export default function CustomerSupportChat({ currentUser }) {
                   >
                     <div
                       style={{
-                        maxWidth: '82%',
+                        maxWidth: '85%',
                         padding: '10px 14px',
                         borderRadius: isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
                         background: isUser ? '#2e5912' : '#ffffff',
                         color: isUser ? '#ffffff' : '#1a3311',
                         fontSize: '12.5px',
-                        lineHeight: 1.45,
+                        lineHeight: 1.5,
                         boxShadow: isUser ? '0 2px 6px rgba(46,89,18,0.25)' : '0 2px 6px rgba(0,0,0,0.05)',
                         border: isUser ? 'none' : '1px solid #e7ede0',
-                        wordBreak: 'break-word'
+                        wordBreak: 'break-word',
+                        whiteSpace: 'pre-line'
                       }}
                     >
                       {m.text}
