@@ -25,17 +25,23 @@ import ContactView from './views/ContactView.jsx';
 
 const photo = (id, w = 700) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${w}&q=85`;
 
-// Parse current URL hash to match known views
+// Clean URL hash on fresh load/reload so the website always starts at home page
+if (typeof window !== 'undefined') {
+  try {
+    const rawHash = (window.location.hash || '').toLowerCase();
+    // Do not wipe admin or sync bridge hashes
+    if (rawHash && !rawHash.startsWith('#admin') && !rawHash.startsWith('#sync=')) {
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState(null, document.title, window.location.pathname + window.location.search);
+      } else {
+        window.location.hash = '';
+      }
+    }
+  } catch (e) {}
+}
+
+// Parse current URL hash to match known views (defaults to 'home')
 const getInitialView = () => {
-  if (typeof window === 'undefined') return 'home';
-  const h = (window.location.hash || '').replace('#', '').toLowerCase().split('?')[0];
-  if (['home', ''].includes(h)) return 'home';
-  if (['shop', 'products', 'catalog'].includes(h)) return 'shop';
-  if (['categories', 'category'].includes(h)) return 'categories';
-  if (['deals', 'deal', 'offers', 'sale'].includes(h)) return 'deals';
-  if (['track', 'tracking', 'parcel', 'order', 'orders', 'track-order'].includes(h)) return 'track';
-  if (['about', 'story', 'farm'].includes(h)) return 'about';
-  if (['contact', 'support', 'help'].includes(h)) return 'contact';
   return 'home';
 };
 
@@ -90,10 +96,21 @@ function App() {
 
   // Sync activeView with browser back/forward and URL hash changes
   useEffect(() => {
+    const parseHashView = () => {
+      const h = (window.location.hash || '').replace('#', '').toLowerCase().split('?')[0];
+      if (['shop', 'products', 'catalog'].includes(h)) return 'shop';
+      if (['categories', 'category'].includes(h)) return 'categories';
+      if (['deals', 'deal', 'offers', 'sale'].includes(h)) return 'deals';
+      if (['track', 'tracking', 'parcel', 'order', 'orders', 'track-order'].includes(h)) return 'track';
+      if (['about', 'story', 'farm'].includes(h)) return 'about';
+      if (['contact', 'support', 'help'].includes(h)) return 'contact';
+      return 'home';
+    };
+
     const handleHashChange = () => {
       const rawHash = window.location.hash.toLowerCase();
       if (rawHash === '#admin' || rawHash.startsWith('#sync=')) return;
-      const view = getInitialView();
+      const view = parseHashView();
       setActiveView(view);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
