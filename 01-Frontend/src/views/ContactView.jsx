@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
   Phone, Mail, MapPin, Clock, Send, CheckCircle2,
-  HelpCircle, ChevronDown, ChevronUp, Truck, ArrowRight
+  HelpCircle, ChevronDown, ChevronUp, Truck, ArrowRight,
+  Facebook, Instagram, Youtube, Twitter, Linkedin, MessageCircle, ExternalLink, Share2
 } from 'lucide-react';
 
-export default function ContactView({ navigateTo, onShowToast }) {
+export default function ContactView({ navigateTo, onShowToast, storeSettings }) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -14,6 +15,25 @@ export default function ContactView({ navigateTo, onShowToast }) {
   });
   const [submitted, setSubmitted] = useState(false);
   const [openFaq, setOpenFaq] = useState(0);
+
+  // Retrieve dynamic social media links from storeSettings or localStorage
+  const currentSettings = storeSettings || (() => {
+    try {
+      const s = localStorage.getItem('gb_store_settings');
+      return s ? JSON.parse(s) : {};
+    } catch {
+      return {};
+    }
+  })();
+
+  const socialLinks = currentSettings?.socialLinks || {
+    facebook: 'https://facebook.com/greenbasket.official',
+    instagram: 'https://instagram.com/greenbasket.fresh',
+    youtube: 'https://youtube.com/@greenbasket',
+    whatsapp: '+8801712345678',
+    twitter: 'https://twitter.com/greenbasket',
+    linkedin: 'https://linkedin.com/company/greenbasket'
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -150,7 +170,7 @@ export default function ContactView({ navigateTo, onShowToast }) {
           )}
         </div>
 
-        {/* Contact Info & Parcel Tracker Banner */}
+        {/* Contact Info, Social Media & Parcel Tracker */}
         <div className="contact-info-col">
           {/* Quick Parcel Tracker Callout */}
           <div className="contact-track-callout">
@@ -176,7 +196,9 @@ export default function ContactView({ navigateTo, onShowToast }) {
               <span className="contact-icon"><Phone /></span>
               <div>
                 <b>Customer Service Hotline</b>
-                <a href="tel:+18004733622">+1 (800) 473-3622 (Toll Free)</a>
+                <a href={`tel:${currentSettings?.storePhone || '+18004733622'}`}>
+                  {currentSettings?.storePhone || '+1 (800) 473-3622'} (Toll Free)
+                </a>
                 <small>Available 24 hours a day, 7 days a week</small>
               </div>
             </div>
@@ -185,7 +207,9 @@ export default function ContactView({ navigateTo, onShowToast }) {
               <span className="contact-icon"><Mail /></span>
               <div>
                 <b>Email Support</b>
-                <a href="mailto:support@greenbasket.com">support@greenbasket.com</a>
+                <a href={`mailto:${currentSettings?.storeEmail || 'support@greenbasket.com'}`}>
+                  {currentSettings?.storeEmail || 'support@greenbasket.com'}
+                </a>
                 <small>Average response time: &lt; 2 hours</small>
               </div>
             </div>
@@ -194,7 +218,7 @@ export default function ContactView({ navigateTo, onShowToast }) {
               <span className="contact-icon"><MapPin /></span>
               <div>
                 <b>Fulfillment & Farm Hub</b>
-                <address>GreenBasket Eco Hub, 104 Fresh Valley Avenue</address>
+                <address>GreenBasket Eco Hub, 104 Fresh Valley Avenue, Dhaka</address>
                 <small>Organic farm distribution & dispatch center</small>
               </div>
             </div>
@@ -206,6 +230,137 @@ export default function ContactView({ navigateTo, onShowToast }) {
                 <span>Monday – Sunday: 7:00 AM – 10:00 PM</span>
                 <small>Express deliveries dispatch every 30 minutes</small>
               </div>
+            </div>
+          </div>
+
+          {/* Official Social Media Platforms Card (Configured from Store Controls & Settings) */}
+          <div className="contact-details-card" style={{ marginTop: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '15px' }}>
+                <Share2 size={17} color="#2e6417" /> Connect On Social Media
+              </h3>
+              <span style={{ fontSize: '10.5px', background: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
+                ● LIVE CHANNELS
+              </span>
+            </div>
+            <p style={{ margin: '0 0 14px', color: '#55664d', fontSize: '12.5px' }}>
+              Follow our organic farms, daily harvests, fresh recipe tips, and live community updates across our official social handles:
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+              {socialLinks.facebook && (
+                <a
+                  href={socialLinks.facebook}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '10px', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8', textDecoration: 'none', transition: 'all 0.2s' }}
+                >
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#1877f2', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                    <Facebook size={16} />
+                  </div>
+                  <div>
+                    <b style={{ display: 'block', fontSize: '12.5px', color: '#1e3a8a' }}>Facebook Page</b>
+                    <small style={{ fontSize: '11px', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      Follow Page <ExternalLink size={9} />
+                    </small>
+                  </div>
+                </a>
+              )}
+
+              {socialLinks.instagram && (
+                <a
+                  href={socialLinks.instagram}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '10px', background: '#fdf2f8', border: '1px solid #fbcfe8', color: '#be185d', textDecoration: 'none', transition: 'all 0.2s' }}
+                >
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888)', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                    <Instagram size={16} />
+                  </div>
+                  <div>
+                    <b style={{ display: 'block', fontSize: '12.5px', color: '#831843' }}>Instagram</b>
+                    <small style={{ fontSize: '11px', color: '#db2777', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      Stories & Reels <ExternalLink size={9} />
+                    </small>
+                  </div>
+                </a>
+              )}
+
+              {socialLinks.youtube && (
+                <a
+                  href={socialLinks.youtube}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '10px', background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', textDecoration: 'none', transition: 'all 0.2s' }}
+                >
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#ff0000', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                    <Youtube size={16} />
+                  </div>
+                  <div>
+                    <b style={{ display: 'block', fontSize: '12.5px', color: '#7f1d1d' }}>YouTube Channel</b>
+                    <small style={{ fontSize: '11px', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      Farm Videos <ExternalLink size={9} />
+                    </small>
+                  </div>
+                </a>
+              )}
+
+              {socialLinks.whatsapp && (
+                <a
+                  href={socialLinks.whatsapp.startsWith('http') ? socialLinks.whatsapp : `https://wa.me/${socialLinks.whatsapp.replace(/[^0-9]/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '10px', background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', textDecoration: 'none', transition: 'all 0.2s' }}
+                >
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#25d366', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                    <MessageCircle size={16} />
+                  </div>
+                  <div>
+                    <b style={{ display: 'block', fontSize: '12.5px', color: '#14532d' }}>WhatsApp Support</b>
+                    <small style={{ fontSize: '11px', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      Chat Live <ExternalLink size={9} />
+                    </small>
+                  </div>
+                </a>
+              )}
+
+              {socialLinks.twitter && (
+                <a
+                  href={socialLinks.twitter}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '10px', background: '#f0f9ff', border: '1px solid #bae6fd', color: '#0369a1', textDecoration: 'none', transition: 'all 0.2s' }}
+                >
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#0284c7', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                    <Twitter size={16} />
+                  </div>
+                  <div>
+                    <b style={{ display: 'block', fontSize: '12.5px', color: '#0c4a6e' }}>Twitter / X</b>
+                    <small style={{ fontSize: '11px', color: '#0284c7', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      Latest News <ExternalLink size={9} />
+                    </small>
+                  </div>
+                </a>
+              )}
+
+              {socialLinks.linkedin && (
+                <a
+                  href={socialLinks.linkedin}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#334155', textDecoration: 'none', transition: 'all 0.2s' }}
+                >
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#0a66c2', color: '#fff', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                    <Linkedin size={16} />
+                  </div>
+                  <div>
+                    <b style={{ display: 'block', fontSize: '12.5px', color: '#0f172a' }}>LinkedIn Page</b>
+                    <small style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      Careers & Press <ExternalLink size={9} />
+                    </small>
+                  </div>
+                </a>
+              )}
             </div>
           </div>
         </div>

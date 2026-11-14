@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   Leaf, Truck, Headphones, Search, UserRound, ShoppingCart, ArrowRight,
   ShieldCheck, Sprout, Heart, Menu, X, Star, CheckCircle2, Mail, Instagram,
-  Facebook, Youtube, Plus, Minus, Package, ChevronDown
+  Facebook, Youtube, Twitter, Linkedin, MessageCircle, Plus, Minus, Package, ChevronDown
 } from 'lucide-react';
 import './styles.css';
 
@@ -893,6 +893,7 @@ function App() {
           <ContactView
             navigateTo={navigateTo}
             onShowToast={showToast}
+            storeSettings={storeSettings}
           />
         )}
       </main>
@@ -911,9 +912,37 @@ function App() {
           </button>
           <p>Your trusted source for fresh, organic and healthy food. We care for you and the planet.</p>
           <div className="socials">
-            <a href="https://facebook.com" aria-label="Facebook" target="_blank" rel="noopener noreferrer"><Facebook /></a>
-            <a href="https://instagram.com" aria-label="Instagram" target="_blank" rel="noopener noreferrer"><Instagram /></a>
-            <a href="https://youtube.com" aria-label="YouTube" target="_blank" rel="noopener noreferrer"><Youtube /></a>
+            {storeSettings?.socialLinks?.facebook ? (
+              <a href={storeSettings.socialLinks.facebook} aria-label="Facebook" target="_blank" rel="noopener noreferrer"><Facebook /></a>
+            ) : null}
+            {storeSettings?.socialLinks?.instagram ? (
+              <a href={storeSettings.socialLinks.instagram} aria-label="Instagram" target="_blank" rel="noopener noreferrer"><Instagram /></a>
+            ) : null}
+            {storeSettings?.socialLinks?.youtube ? (
+              <a href={storeSettings.socialLinks.youtube} aria-label="YouTube" target="_blank" rel="noopener noreferrer"><Youtube /></a>
+            ) : null}
+            {storeSettings?.socialLinks?.whatsapp ? (
+              <a
+                href={storeSettings.socialLinks.whatsapp.startsWith('http') ? storeSettings.socialLinks.whatsapp : `https://wa.me/${storeSettings.socialLinks.whatsapp.replace(/\D/g, '')}`}
+                aria-label="WhatsApp"
+                target="_blank"
+                rel="noopener noreferrer"
+              ><MessageCircle /></a>
+            ) : null}
+            {storeSettings?.socialLinks?.twitter ? (
+              <a href={storeSettings.socialLinks.twitter} aria-label="Twitter / X" target="_blank" rel="noopener noreferrer"><Twitter /></a>
+            ) : null}
+            {storeSettings?.socialLinks?.linkedin ? (
+              <a href={storeSettings.socialLinks.linkedin} aria-label="LinkedIn" target="_blank" rel="noopener noreferrer"><Linkedin /></a>
+            ) : null}
+            {/* Fallback if no social links are explicitly configured */}
+            {(!storeSettings?.socialLinks || Object.values(storeSettings.socialLinks).every(v => !v)) && (
+              <>
+                <a href="https://facebook.com" aria-label="Facebook" target="_blank" rel="noopener noreferrer"><Facebook /></a>
+                <a href="https://instagram.com" aria-label="Instagram" target="_blank" rel="noopener noreferrer"><Instagram /></a>
+                <a href="https://youtube.com" aria-label="YouTube" target="_blank" rel="noopener noreferrer"><Youtube /></a>
+              </>
+            )}
           </div>
         </div>
 
