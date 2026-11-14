@@ -1049,13 +1049,17 @@ function App() {
         }}
       />
 
-      {/* Authentication Modal */}
+      {/* Authentication & Customer Profile Modal */}
       <AuthModal
         isOpen={authOpen}
         onClose={() => setAuthOpen(false)}
         onLoginSuccess={handleLoginSuccess}
         currentUser={currentUser}
         onLogout={handleLogout}
+        onTrackOrder={(orderId) => {
+          setTrackingOrderId(orderId);
+          navigateTo('track');
+        }}
       />
 
       {/* Floating Customer Support Live Chat (Bottom-Right) */}

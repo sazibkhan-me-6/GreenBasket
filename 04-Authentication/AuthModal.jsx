@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
-import { X, UserRound, Lock, Mail, ShieldCheck, LogOut, Phone, MapPin, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import {
+  X, UserRound, Lock, Mail, ShieldCheck, LogOut, Phone, MapPin, Eye, EyeOff,
+  ShoppingBag, Truck, Calendar, CheckCircle2, AlertTriangle, ArrowRight, XCircle, Search
+} from 'lucide-react';
+import { api } from '@api/api.js';
 
-/* ── Floating label input — defined OUTSIDE to prevent remount on every keystroke ── */
+/* ── Floating label input ── */
 function FloatingInput({ id, label, type = 'text', value, onChange, icon, required, rightSlot, fieldError }) {
   return (
     <div style={{ position: 'relative', marginBottom: fieldError ? '4px' : '0' }}>
@@ -72,8 +76,9 @@ const STRENGTH_LABEL = ['', 'Weak', 'Fair', 'Good', 'Strong'];
 const STRENGTH_COLOR = ['#ccc', '#e53935', '#fb8c00', '#fdd835', '#43a047'];
 
 /* ══════════════════════════════════════════════════════════ */
-export default function AuthModal({ isOpen, onClose, onLoginSuccess, currentUser, onLogout }) {
-  const [tab, setTab] = useState('login');
+export default function AuthModal({ isOpen, onClose, onLoginSuccess, currentUser, onLogout, onTrackOrder }) {
+  const [tab, setTab] = useState('login'); // for guest: 'login' | 'register'
+  const [activeProfileTab, setActiveProfileTab] = useState('orders'); // for logged-in: 'orders' | 'profile'
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
@@ -84,10 +89,50 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, currentUser
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [orderRefreshKey, setOrderRefreshKey] = useState(0);
+  const [cancellingId, setCancellingId] = useState(null);
 
   if (!isOpen) return null;
 
   const strength = getStrength(password);
+
+  // Retrieve user orders
+  const getUserOrders = () => {
+    if (!currentUser) return [];
+    try {
+      const allOrders = api.getOrders() || [];
+      const userEmail = (currentUser.email || '').toLowerCase().trim();
+      const userPhone = (currentUser.phone || '').trim();
+      const userName = (currentUser.name || '').toLowerCase().trim();
+
+      return allOrders.filter(o => {
+        const oEmail = (o.customerEmail || o.email || (o.customer && o.customer.email) || '').toLowerCase().trim();
+        const oPhone = (o.customerPhone || o.phone || (o.customer && o.customer.phone) || '').trim();
+        const oName = (o.customerName || o.customer || '').toLowerCase().trim();
+
+        if (userEmail && oEmail && oEmail === userEmail) return true;
+        if (userPhone && oPhone && oPhone === userPhone) return true;
+        if (userName && oName && oName === userName) return true;
+        return false;
+      });
+    } catch {
+      return [];
+    }
+  };
+
+  const userOrders = getUserOrders();
+
+  const handleCancelOrder = (orderId) => {
+    if (!window.confirm(`আপনি কি সত্যিই অর্ডার #${orderId} বাতিল (Cancel) করতে চান?`)) return;
+    setCancellingId(orderId);
+    try {
+      api.cancelOrder(orderId);
+      setOrderRefreshKey(k => k + 1);
+    } catch (e) {
+      console.error(e);
+    }
+    setCancellingId(null);
+  };
 
   const validate = () => {
     const errs = {};
@@ -120,6 +165,21 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, currentUser
 
   const switchTab = (t) => { setTab(t); setFieldErrors({}); setError(''); };
 
+  // Status badge styling
+  const getStatusBadge = (status) => {
+    const s = (status || 'Processing').toLowerCase();
+    if (s.includes('cancel')) {
+      return { bg: '#fee2e2', color: '#b91c1c', border: '#fca5a5', text: 'Cancelled' };
+    }
+    if (s.includes('deliver')) {
+      return { bg: '#dcfce7', color: '#15803d', border: '#86efac', text: 'Delivered' };
+    }
+    if (s.includes('ship') || s.includes('out')) {
+      return { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe', text: 'Out for Delivery' };
+    }
+    return { bg: '#fef3c7', color: '#b45309', border: '#fde68a', text: 'Processing' };
+  };
+
   return (
     <div
       className="drawer-backdrop"
@@ -131,8 +191,8 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, currentUser
         onClick={e => e.stopPropagation()}
         style={{
           background: '#fcfdfa', color: '#1a3211',
-          width: 'min(440px, calc(100% - 32px))',
-          borderRadius: '20px', padding: '28px',
+          width: currentUser ? 'min(560px, calc(100% - 24px))' : 'min(440px, calc(100% - 32px))',
+          borderRadius: '20px', padding: '24px',
           boxShadow: '0 25px 60px rgba(0,0,0,0.35)',
           position: 'relative', maxHeight: '90vh', overflowY: 'auto'
         }}
@@ -146,36 +206,275 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess, currentUser
         </button>
 
         {currentUser ? (
-          /* ── Logged-in view ── */
+          /* ── LOGGED-IN CUSTOMER DASHBOARD & ORDERS ── */
           <div>
-            <div style={{ textAlign: 'center', marginBottom: '22px' }}>
-              <div style={{ width: '54px', height: '54px', borderRadius: '50%', background: '#e9f5d1', color: '#3d6c15', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
-                <UserRound size={28}/>
+            {/* Customer Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px', borderBottom: '1px solid #e7ede0', paddingBottom: '16px' }}>
+              <div style={{
+                width: '52px', height: '52px', borderRadius: '50%',
+                background: 'linear-gradient(135deg, #e9f5d1 0%, #cde8a2 100%)',
+                color: '#2a5310', display: 'grid', placeItems: 'center', flexShrink: 0
+              }}>
+                <UserRound size={26}/>
               </div>
-              <h2 style={{ margin: '0 0 6px', fontFamily: 'Manrope, sans-serif', fontSize: '22px', color: '#162e0c' }}>{currentUser.name}</h2>
-              <span style={{ display: 'inline-block', fontSize: '11px', fontWeight: 700, color: '#284f10', background: '#dff1b8', padding: '3px 10px', borderRadius: '12px' }}>
-                Verified Customer
-              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <h2 style={{ margin: 0, fontFamily: 'Manrope, sans-serif', fontSize: '20px', color: '#162e0c' }}>
+                    {currentUser.name}
+                  </h2>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#284f10', background: '#dff1b8', padding: '2px 8px', borderRadius: '10px' }}>
+                    Verified Customer
+                  </span>
+                </div>
+                <small style={{ color: '#607256', fontSize: '12px' }}>{currentUser.email}</small>
+              </div>
             </div>
-            <div style={{ background: '#f4f7ee', padding: '14px', borderRadius: '12px', marginBottom: '18px', fontSize: '13px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <span style={{ color: '#67795d' }}>Email:</span><b>{currentUser.email}</b>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#67795d' }}>Membership:</span>
-                <span style={{ color: '#3f7215', fontWeight: 600 }}>Active Member</span>
-              </div>
+
+            {/* Profile Navigation Tabs */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              <button
+                type="button"
+                onClick={() => setActiveProfileTab('orders')}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '9px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: activeProfileTab === 'orders' ? '#2e5912' : '#edf3e3',
+                  color: activeProfileTab === 'orders' ? '#ffffff' : '#334e24',
+                  fontWeight: 700,
+                  fontSize: '12.5px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s'
+                }}
+              >
+                <ShoppingBag size={15}/> My Orders ({userOrders.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveProfileTab('profile')}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  padding: '9px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: activeProfileTab === 'profile' ? '#2e5912' : '#edf3e3',
+                  color: activeProfileTab === 'profile' ? '#ffffff' : '#334e24',
+                  fontWeight: 700,
+                  fontSize: '12.5px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s'
+                }}
+              >
+                <UserRound size={15}/> Profile Details
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => { if (onLogout) onLogout(); onClose(); }}
-              style={{ width: '100%', padding: '11px', borderRadius: '12px', border: '1px solid #d4deca', background: '#ffffff', color: '#9e2a2b', cursor: 'pointer', fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-            >
-              <LogOut size={15}/> Sign Out
-            </button>
+
+            {/* TAB 1: MY ORDERS & LIVE STATUS */}
+            {activeProfileTab === 'orders' && (
+              <div>
+                {userOrders.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '36px 16px', background: '#f6f9f1', borderRadius: '14px', border: '1px dashed #d1dec6' }}>
+                    <ShoppingBag size={34} color="#8a9c7e" style={{ margin: '0 auto 8px' }} />
+                    <b style={{ display: 'block', fontSize: '14px', color: '#273f1d' }}>আপনার কোনো অর্ডার পাওয়া যায়নি</b>
+                    <p style={{ margin: '4px 0 14px', fontSize: '12px', color: '#687b5f' }}>
+                      তাজা অর্গানিক শাকসবজি ও ফলমূল ব্রাউজ করে প্রথম অর্ডারটি দিন।
+                    </p>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      style={{
+                        background: '#305915', color: '#fff', border: 'none',
+                        padding: '8px 18px', borderRadius: '8px', fontSize: '12px',
+                        fontWeight: 700, cursor: 'pointer'
+                      }}
+                    >
+                      Shop Fresh Now
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
+                    {userOrders.map((o) => {
+                      const badge = getStatusBadge(o.status);
+                      const isCancelled = (o.status || '').toLowerCase() === 'cancelled';
+                      const canCancel = !isCancelled && (o.status || 'Processing').toLowerCase() !== 'delivered';
+
+                      return (
+                        <div
+                          key={o.id}
+                          style={{
+                            background: '#ffffff',
+                            border: '1px solid #dbe5d4',
+                            borderRadius: '14px',
+                            padding: '14px 16px',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+                          }}
+                        >
+                          {/* Order Card Header */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                            <div>
+                              <b style={{ fontSize: '13.5px', color: '#162e0c' }}>Order #{o.id}</b>
+                              <span style={{ fontSize: '11px', color: '#66795c', display: 'block', marginTop: '1px' }}>
+                                📅 {o.date || 'Recent Order'} • {o.paymentMethod || 'Cash on Delivery'}
+                              </span>
+                            </div>
+                            <span style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              background: badge.bg,
+                              color: badge.color,
+                              border: `1px solid ${badge.border}`,
+                              padding: '3px 9px',
+                              borderRadius: '20px'
+                            }}>
+                              ● {badge.text}
+                            </span>
+                          </div>
+
+                          {/* Ordered Items List */}
+                          <div style={{ background: '#f7faf2', borderRadius: '8px', padding: '9px 12px', marginBottom: '10px' }}>
+                            <small style={{ display: 'block', fontSize: '10.5px', fontWeight: 700, color: '#4b613e', marginBottom: '5px' }}>
+                              অর্ডারকৃত পণ্যসমূহ:
+                            </small>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {(Array.isArray(o.items) ? o.items : []).map((it, idx) => (
+                                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#273e1c' }}>
+                                  <span>{it.name || 'Organic Produce'} <b style={{ color: '#56831d' }}>× {it.qty || 1}</b></span>
+                                  <b>${((Number(it.price) || 0) * (Number(it.qty) || 1)).toFixed(2)}</b>
+                                </div>
+                              ))}
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e1ebda', marginTop: '6px', paddingTop: '6px', fontSize: '12.5px' }}>
+                              <b>সর্বমোট পরিশোধযোগ্য:</b>
+                              <b style={{ color: '#254e12', fontSize: '13.5px' }}>${Number(o.total || 0).toFixed(2)}</b>
+                            </div>
+                          </div>
+
+                          {/* Order Delivery Location & Actions */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                            <div style={{ fontSize: '11px', color: '#5a6e4f', display: 'flex', alignItems: 'center', gap: '4px', flex: 1, minWidth: '160px' }}>
+                              <MapPin size={13} color="#4d7c18" style={{ flexShrink: 0 }} />
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {o.address || o.deliveryAddress || 'Standard Delivery'}
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {/* Live Track Button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onClose();
+                                  if (onTrackOrder) onTrackOrder(o.id);
+                                }}
+                                style={{
+                                  background: '#edf7e4',
+                                  border: '1px solid #bcdca8',
+                                  color: '#2b5a11',
+                                  padding: '5px 10px',
+                                  borderRadius: '8px',
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <Truck size={12} /> ট্র্যাক করুন
+                              </button>
+
+                              {/* Cancel Order Button */}
+                              {canCancel && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCancelOrder(o.id)}
+                                  disabled={cancellingId === o.id}
+                                  style={{
+                                    background: '#fef2f2',
+                                    border: '1px solid #fecaca',
+                                    color: '#b91c1c',
+                                    padding: '5px 10px',
+                                    borderRadius: '8px',
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                  title="অর্ডার ক্যানসেল করতে ক্লিক করুন"
+                                >
+                                  <XCircle size={12} /> ক্যানসেল
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 2: PROFILE DETAILS */}
+            {activeProfileTab === 'profile' && (
+              <div>
+                <div style={{ background: '#f4f7ee', padding: '16px', borderRadius: '14px', marginBottom: '18px', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#67795d' }}>Full Name:</span>
+                    <b style={{ color: '#162e0c' }}>{currentUser.name}</b>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#67795d' }}>Email Address:</span>
+                    <b style={{ color: '#162e0c' }}>{currentUser.email}</b>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#67795d' }}>Phone Number:</span>
+                    <b style={{ color: '#162e0c' }}>{currentUser.phone || 'Not set'}</b>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#67795d' }}>Delivery Address:</span>
+                    <b style={{ color: '#162e0c', maxWidth: '60%', textAlign: 'right' }}>
+                      {currentUser.address || 'Standard Delivery'}
+                    </b>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #e1e9d8', paddingTop: '8px' }}>
+                    <span style={{ color: '#67795d' }}>Account Status:</span>
+                    <span style={{ color: '#3f7215', fontWeight: 700 }}>Active Member ●</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Sign Out Action */}
+            <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid #e7ede0' }}>
+              <button
+                type="button"
+                onClick={() => { if (onLogout) onLogout(); onClose(); }}
+                style={{
+                  width: '100%', padding: '10px', borderRadius: '10px',
+                  border: '1px solid #f0cfcf', background: '#fff5f5',
+                  color: '#9e2a2b', cursor: 'pointer', fontWeight: 700,
+                  fontSize: '12.5px', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', gap: '6px'
+                }}
+              >
+                <LogOut size={15}/> Sign Out from GreenBasket
+              </button>
+            </div>
           </div>
         ) : (
-          /* ── Auth form ── */
+          /* ── GUEST AUTH FORM (LOGIN / REGISTER) ── */
           <>
             <div style={{ textAlign: 'center', marginBottom: '22px' }}>
               <div style={{ width: '46px', height: '46px', borderRadius: '50%', background: '#e9f5d1', color: '#497c11', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>

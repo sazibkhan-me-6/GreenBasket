@@ -116,6 +116,7 @@ export const api = {
   createOrder: ({ items, total, customer, paymentMethod }) => {
     const orders = api.getOrders();
     const custName = (customer && customer.name) ? customer.name : 'Valued Customer';
+    const custEmail = (customer && customer.email) ? customer.email.toLowerCase().trim() : '';
     const custPhone = (customer && customer.phone) ? customer.phone : '';
     const custAddr = (customer && customer.address) ? customer.address : 'Standard Delivery';
     const custNotes = (customer && customer.notes) ? customer.notes : '';
@@ -124,6 +125,8 @@ export const api = {
       date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
       customerName: custName,
       customer: custName,
+      customerEmail: custEmail,
+      email: custEmail,
       customerPhone: custPhone,
       phone: custPhone,
       address: custAddr,
@@ -138,6 +141,19 @@ export const api = {
     const updated = [newOrder, ...orders];
     setStore(STORAGE_KEYS.ORDERS, updated);
     return newOrder;
+  },
+
+  // Cancel an order (by order ID)
+  cancelOrder: (orderId) => {
+    const orders = api.getOrders();
+    const updated = orders.map(o => {
+      if (o.id === orderId) {
+        return { ...o, status: 'Cancelled' };
+      }
+      return o;
+    });
+    setStore(STORAGE_KEYS.ORDERS, updated);
+    return updated;
   },
 
   // --- Auth / User ---
