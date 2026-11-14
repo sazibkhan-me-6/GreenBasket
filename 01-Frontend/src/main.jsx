@@ -1062,6 +1062,8 @@ function App() {
       <CustomerSupportChat
         currentUser={currentUser}
         onNavigate={navigateTo}
+        products={productsList}
+        storeSettings={storeSettings}
       />
 
       {/* Headless Cross-Origin Sync Bridge to Admin Panel */}

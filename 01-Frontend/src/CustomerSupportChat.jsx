@@ -5,11 +5,11 @@ const INITIAL_MESSAGE = {
   id: 1,
   sender: 'support',
   name: 'GreenBasket Support',
-  text: 'স্বাগতম! 🌱 Welcome to GreenBasket Live Support. আপনি বাংলা বা ইংরেজিতে যেকোনো পণ্য, অর্ডার বা ওয়েবসাইট সম্পর্কিত প্রশ্ন করতে পারেন। How can we assist you today?',
+  text: 'স্বাগতম! 🌱 Welcome to GreenBasket Live Support. আমাদের স্টোরের যেকোনো ফল, সবজি, পণ্য তালিকা, স্টক, দাম, ডেলিভারি বা অফার সম্পর্কে বাংলা বা ইংরেজিতে প্রশ্ন করতে পারেন। How can we assist you today?',
   time: 'Just now'
 };
 
-// Security guard: Check for confidential/internal/admin inquiries
+// Security boundary: Check for confidential/internal/admin system inquiries
 function isRestrictedQuery(text) {
   const restrictedKeywords = [
     'admin', 'password', 'token', 'secret', 'gist', 'api key', 'apikey', 'database', 'backend',
@@ -21,110 +21,154 @@ function isRestrictedQuery(text) {
   return restrictedKeywords.some(k => q.includes(k));
 }
 
-// Comprehensive bilingual responder tailored specifically to GreenBasket
-function getSmartReply(userQuery) {
+// Comprehensive bilingual AI responder with real-time website & product catalog knowledge
+function getSmartReply(userQuery, products = [], storeSettings = {}) {
   const q = userQuery.toLowerCase().trim();
-
-  // 1. Detect language (Check for Bangla Unicode block)
   const isBangla = /[\u0980-\u09FF]/.test(userQuery);
 
-  // 2. Strict Security Boundary: Refuse hidden, confidential, internal or admin system inquiries
+  // 1. Strict Security Boundary: Refuse hidden or administrative topics
   if (isRestrictedQuery(userQuery)) {
     return isBangla
       ? '🔒 দুঃখিত, নিরাপত্তা ও গোপনীয়তা বিধিমালার কারণে সিস্টেমের অভ্যন্তরীণ বা অ্যাডমিন সংক্রান্ত তথ্য প্রকাশ করা সম্ভব নয়। সাধারণ পণ্য, অর্ডার বা ডেলিভারি বিষয়ে যেকোনো তথ্যের জন্য আমরা আপনাকে সাহায্য করতে পারি।'
-      : '🔒 I apologize, but due to security and privacy policies, internal system architecture and administrative details cannot be shared. We are gladly here to assist you with products, orders, shipping, and store services.';
+      : '🔒 I apologize, but due to security and confidentiality policies, internal system details and administrative functions cannot be shared. We are glad to help you with products, orders, shipping, and shopping assistance.';
   }
 
-  // 3. Greetings & Courtesy
+  // 2. Dynamic Product & Catalog Search across all active items
+  if (Array.isArray(products) && products.length > 0) {
+    // Check if the user is asking about a specific product name or category
+    const matchedProducts = products.filter(p => {
+      const pName = (p.name || '').toLowerCase();
+      const pCat = (p.category || '').toLowerCase();
+      // Match full word or partial
+      return q.includes(pName) || pName.split(' ').some(word => word.length > 3 && q.includes(word)) || (q.includes(pCat) && (q.includes('item') || q.includes('list') || q.includes('পণ্য') || q.includes('আছে')));
+    });
+
+    if (matchedProducts.length > 0) {
+      const topP = matchedProducts[0];
+      const effectivePrice = (topP.discountPrice && Number(topP.discountPrice) > 0 && Number(topP.discountPrice) < Number(topP.price))
+        ? Number(topP.discountPrice)
+        : Number(topP.price || 0);
+
+      // Asking specifically about price / দাম
+      if (q.includes('price') || q.includes('cost') || q.includes('how much') || q.includes('দাম') || q.includes('টাকা') || q.includes('কত')) {
+        return isBangla
+          ? `🥦 ${topP.name} (${topP.unit || 'per pack'})-এর বর্তমান মূল্য $${effectivePrice.toFixed(2)}${topP.discountPrice ? ` (আসল দাম ছিল $${Number(topP.price).toFixed(2)})` : ''}। এটি স্টকে আছে এবং সরাসরি কার্টে যোগ করতে পারেন!`
+          : `🥦 ${topP.name} (${topP.unit || 'per pack'}) is currently priced at $${effectivePrice.toFixed(2)}${topP.discountPrice ? ` (regular price $${Number(topP.price).toFixed(2)})` : ''}. In stock and ready to order!`;
+      }
+
+      // Asking about stock or availability / স্টক বা আছে কিনা
+      if (q.includes('stock') || q.includes('available') || q.includes('have') || q.includes('স্টক') || q.includes('আছে কি') || q.includes('পাওয়া যাবে')) {
+        const inStock = Number(topP.stock || 20) > 0;
+        return isBangla
+          ? inStock
+            ? `✅ হ্যাঁ, ${topP.name} বর্তমানে স্টকে উপলব্ধ রয়েছে! ইউনিট: ${topP.unit || 'pack'}, দাম: $${effectivePrice.toFixed(2)}।`
+            : `⚠️ দুঃখিত, ${topP.name} সাময়িকভাবে স্টক-আউট রয়েছে। আমাদের পরবর্তী হার্ভেস্টে আবার পাওয়া যাবে।`
+          : inStock
+            ? `✅ Yes, ${topP.name} is currently in stock! Unit: ${topP.unit || 'pack'}, price: $${effectivePrice.toFixed(2)}.`
+            : `⚠️ Sorry, ${topP.name} is currently out of stock. It will be replenished with our next harvest.`;
+      }
+
+      // General product inquiry
+      return isBangla
+        ? `🥬 ${topP.name}:\n• ক্যাটাগরি: ${topP.category || 'Fresh Harvest'}\n• ইউনিট: ${topP.unit || '1 pack'}\n• মূল্য: $${effectivePrice.toFixed(2)}\n• স্টক: ${topP.stock || 'Available'}\n• রেটিং: ⭐ ${topP.rating || '5.0'} (${topP.reviews || 10}+ reviews)\nআপনি সরাসরি এটি কার্টে যোগ করে অর্ডার করতে পারেন!`
+        : `🥬 ${topP.name}:\n• Category: ${topP.category || 'Fresh Harvest'}\n• Unit: ${topP.unit || '1 pack'}\n• Price: $${effectivePrice.toFixed(2)}\n• Stock: ${topP.stock || 'Available'}\n• Rating: ⭐ ${topP.rating || '5.0'} (${topP.reviews || 10}+ reviews)\nYou can add this directly to your cart!`;
+    }
+  }
+
+  // 3. Product Categories Inquiry
+  if (q.includes('category') || q.includes('categories') || q.includes('ক্যাটাগরি') || q.includes('কী কী সবজি') || q.includes('কী কী পাওয়া যায়') || q.includes('পণ্য তালিকা') || q.includes('what products')) {
+    return isBangla
+      ? '🧺 GreenBasket-এ আপনি পাবেন:\n১. Vegetables (তাজা শাকসবজি — টমেটো, গাজর, ক্যাপসিকাম, ব্রকলি, আলু)\n২. Fruits (আম, আপেল, ড্রাগন ফ্রুট, অ্যাভোকাডো)\n৩. Herbs & Greens (পুদিনা, ধনেপাতা, পালং শাক)\n৪. Dairy (খাঁটি দুধ, পনির, মাখন)\n৫. Bakery (ফ্রেশ হোল-হুইট ব্রেড)\n৬. Pantry (অর্গানিক মধু ও ড্রাই ফ্রুটস)।'
+      : '🧺 At GreenBasket, you can shop from:\n1. Vegetables (Tomatoes, Carrots, Bell Peppers, Broccoli, Avocados)\n2. Fruits (Apples, Mangoes, Dragon Fruit, Bananas)\n3. Herbs & Greens (Mint, Coriander, Spinach)\n4. Dairy (Farm-fresh milk, butter, cheese)\n5. Bakery (Artisan bread & baked goods)\n6. Pantry (Raw organic honey & staples).';
+  }
+
+  // 4. Greetings
   if (/^(hi|hello|hey|good morning|good evening|good afternoon|hola)\b/i.test(q) || /^(হাই|হ্যালো|সালাম|নমস্কার|কেমন আছেন)/i.test(q)) {
     return isBangla
       ? '👋 হ্যালো! GreenBasket-এ আপনাকে স্বাগতম। আপনি তাজা শাকসবজি, ফলমূল, অর্ডার ট্র্যাক বা ডেলিভারি সম্পর্কে যা জানতে চান বলুন।'
       : '👋 Hello! Welcome to GreenBasket. How can we help you today with our organic harvest, order tracking, or delivery?';
   }
 
-  if (q.includes('thank') || q.includes('ধন্যবাদ') || q.includes('tnx') || q.includes('thx')) {
-    return isBangla
-      ? 'আপনাকেও অনেক ধন্যবাদ! GreenBasket-এর সাথেই থাকুন, সুস্থ ও সতেজ থাকুন। 🌱'
-      : 'You are very welcome! Thank you for choosing GreenBasket. Stay healthy and fresh! 🌱';
-  }
-
-  // 4. Order Tracking & Parcel Location
+  // 5. Order Tracking & Parcel Location
   if (q.includes('track') || q.includes('parcel') || q.includes('order status') || q.includes('where is my order') || q.includes('ট্র্যাক') || q.includes('পার্সেল') || q.includes('অর্ডার কোথায়') || q.includes('অর্ডারের অবস্থা')) {
     return isBangla
       ? '📦 আপনার অর্ডার ট্র্যাক করতে ওয়েবসাইটের উপরে থাকা "Track Parcel Live" বাটনে ক্লিক করুন অথবা আপনার Order ID (যেমন: GB-1001) দিয়ে সার্চ করুন। আপনি সরাসরি Google Maps-এ লাইভ লোকেশনও দেখতে পাবেন।'
       : '📦 To track your parcel, please click the "Track Parcel Live" button at the top header or search with your Order ID (e.g., GB-1001). You can also view live Google Maps GPS tracking for your delivery.';
   }
 
-  // 5. How to place an order / Ordering Rules
+  // 6. How to place an order / Ordering Rules
   if (q.includes('how to order') || q.includes('place order') || q.includes('order kivabe') || q.includes('অর্ডার কিভাবে') || q.includes('অর্ডার করব কিভাবে') || q.includes('অর্ডার দিতে চাই')) {
     return isBangla
       ? '🛒 অর্ডার করার নিয়ম খুবই সহজ:\n১. পছন্দমতো সবজি বা ফল কার্টে যোগ করুন।\n২. কার্ট ওপেন করে "Sign In to Checkout"-এ ক্লিক করে আপনার অ্যাকাউন্ট লগইন বা তৈরি করুন।\n৩. ডেলিভারি ঠিকানা ও ফোন নম্বর দিয়ে ক্যাশ অন ডেলিভারি বা অনলাইনে পেমেন্ট নিশ্চিত করুন।'
       : '🛒 How to order:\n1. Add your desired fresh produce to the cart.\n2. Open your cart and click "Sign In to Checkout" to login or register.\n3. Enter your delivery address & phone number, choose your payment method, and confirm your order!';
   }
 
-  // 6. Delivery Fees & Free Shipping
+  // 7. Delivery Fees & Free Shipping
   if (q.includes('delivery fee') || q.includes('shipping fee') || q.includes('delivery charge') || q.includes('shipping charge') || q.includes('ডেলিভারি চার্জ') || q.includes('শিপিং') || q.includes('ডেলিভারি খরচ')) {
     return isBangla
       ? '🚚 গ্রিন বাস্কেটে $49 বা তার বেশি মূল্যের অর্ডারে সারা দেশে ডেলিভারি সম্পূর্ণ ফ্রি! আর $49-এর কম অর্ডারে ডেলিভারি চার্জ মাত্র $4.99।'
       : '🚚 At GreenBasket, delivery is 100% FREE on all orders of $49 or more! For orders below $49, standard delivery is only $4.99.';
   }
 
-  // 7. Delivery Time & Speed
+  // 8. Delivery Time & Speed
   if (q.includes('delivery time') || q.includes('how long') || q.includes('when will i get') || q.includes('কত সময়') || q.includes('কখন পাব') || q.includes('কবে আসবে') || q.includes('ডেলিভারি হতে কত দিন')) {
     return isBangla
       ? '⚡ ঢাকা শহরের মধ্যে সেম-ডে অথবা ১২–২৪ ঘণ্টার ভেতর দ্রুত ও সতেজ ডেলিভারি পৌঁছে দেওয়া হয়। অন্যান্য এলাকায় ১–২ কার্যদিবসের মধ্যে ডেলিভারি সম্পন্ন হয়।'
       : '⚡ In Dhaka city, we deliver within 12 to 24 hours (same-day delivery available). For outer regions, delivery usually takes 1 to 2 business days.';
   }
 
-  // 8. Payment Methods
+  // 9. Payment Methods
   if (q.includes('payment') || q.includes('bkash') || q.includes('nagad') || q.includes('cash on delivery') || q.includes('card') || q.includes('পেমেন্ট') || q.includes('বিকাশ') || q.includes('নগদ') || q.includes('টাকা পরিশোধ')) {
     return isBangla
       ? '💳 আমরা গ্রহণ করি:\n• ক্যাশ অন ডেলিভারি (পণ্য পেয়ে নগদ টাকা দিন)\n• বিকাশ (bKash) ও নগদ (Nagad)\n• ভিসা ও মাস্টারকার্ড (Debit/Credit Card)।'
       : '💳 Accepted Payment Methods:\n• Cash on Delivery (COD — pay upon arrival)\n• bKash & Nagad mobile banking\n• Visa & MasterCard debit/credit cards.';
   }
 
-  // 9. Discounts, Coupons & Promo Codes
+  // 10. Discounts, Coupons & Promo Codes
+  const activePromo = storeSettings?.promoCode ? storeSettings.promoCode.trim().toUpperCase() : 'GREEN20';
+  const activePct = Number(storeSettings?.promoDiscount) || 20;
+
   if (q.includes('discount') || q.includes('promo') || q.includes('coupon') || q.includes('offer') || q.includes('অফার') || q.includes('ডিসকাউন্ট') || q.includes('কুপন') || q.includes('ছাড়')) {
     return isBangla
-      ? '🎉 স্পেশাল প্রোমো কোড: চেকআউটে "GREEN20" ব্যবহার করলে পাবেন ফ্ল্যাট ২০% ইনস্ট্যান্ট ডিসকাউন্ট! এছাড়া হোমপেজের Deals সেকশনে প্রতিদিনের বিশেষ ছাড় দেখতে পারেন।'
-      : '🎉 Special Promo Code: Enter coupon code "GREEN20" at checkout for a flat 20% instant discount! You can also check our "Deals" page for daily flash savings.';
+      ? `🎉 স্পেশাল প্রোমো কোড: চেকআউটে "${activePromo}" ব্যবহার করলেই পেয়ে যাবেন ফ্ল্যাট ${activePct}% ইনস্ট্যান্ট ডিসকাউন্ট! এছাড়া হোমপেজের Deals সেকশনে প্রতিদিনের বিশেষ ছাড় দেখতে পারেন।`
+      : `🎉 Special Promo Code: Enter coupon code "${activePromo}" at checkout for a flat ${activePct}% instant discount! You can also check our "Deals" page for daily flash savings.`;
   }
 
-  // 10. Organic Quality & Freshness Guarantee
+  // 11. Organic Quality & Freshness Guarantee
   if (q.includes('organic') || q.includes('fresh') || q.includes('quality') || q.includes('farm') || q.includes('অর্গানিক') || q.includes('তাজা') || q.includes('খামার') || q.includes('গুণগত মান')) {
     return isBangla
       ? '🌱 আমাদের প্রতিটি পণ্য ১০০% সার্টিফাইড রাসায়নিকমুক্ত অর্গানিক খামার থেকে ভোরের আলোয় তোলা হয় এবং বিশেষ তাপমাত্রা নিয়ন্ত্রিত প্যাকেজিংয়ে সরবরাহ করা হয়।'
       : '🌱 Every item is 100% certified pesticide-free organic, harvested fresh at dawn from partnered local farms and delivered under strict hygienic standards.';
   }
 
-  // 11. Return & Refund Policy
+  // 12. Return & Refund Policy
   if (q.includes('return') || q.includes('refund') || q.includes('damaged') || q.includes('নষ্ট') || q.includes('রিটার্ন') || q.includes('ফেরত') || q.includes('পচা')) {
     return isBangla
-      ? '🔄 আমাদের রয়েছে ইন্সট্যান্ট রিটার্ন পলিসি। ডেলিভারি গ্রহণের সময় পণ্যের মানে কোনো ত্রুটি পেলে সাথে সাথে রাইডারকে ফেরত দিতে পারেন অথবা ২৪ ঘণ্টার মধ্যে হেল্পলাইনে জানালে ফুল রিফান্ড বা রিপ্লেসমেন্ট প্রদান করা হবে।'
+      ? '🔄 আমাদের রয়েছে ১০০% মান সন্তুষ্টি পলিসি। ডেলিভারি গ্রহণের সময় পণ্যের মানে কোনো ত্রুটি পেলে সাথে সাথে রাইডারকে ফেরত দিতে পারেন অথবা ২৪ ঘণ্টার মধ্যে হেল্পলাইনে জানালে ফুল রিফান্ড বা রিপ্লেসমেন্ট প্রদান করা হবে।'
       : '🔄 We offer a 100% fresh satisfaction guarantee. If any produce is damaged or below standard upon arrival, hand it back to the rider or contact our helpline within 24 hours for an instant replacement or full refund.';
   }
 
-  // 12. Account & Registration Assistance
+  // 13. Account & Registration Assistance
   if (q.includes('account') || q.includes('register') || q.includes('sign in') || q.includes('login') || q.includes('সাইন ইন') || q.includes('অ্যাকাউন্ট') || q.includes('লগইন')) {
     return isBangla
       ? '👤 অ্যাকাউন্টে প্রবেশ করতে ওয়েবসাইটের উপরের "Account" বাটনে ক্লিক করুন। নতুন হলে "New Account" ট্যাবে নাম, ফোন ও ঠিকানা দিয়ে সহজে নিবন্ধন করে অর্ডার করতে পারবেন।'
       : '👤 To access your account, click the "Account" button in the top navigation. New customers can register in seconds by selecting the "New Account" tab.';
   }
 
-  // 13. Helpline & Contact Info
+  // 14. Helpline & Contact Info
   if (q.includes('contact') || q.includes('helpline') || q.includes('phone') || q.includes('call') || q.includes('email') || q.includes('ঠিকানা') || q.includes('যোগাযোগ') || q.includes('ফোন')) {
     return isBangla
       ? '📞 আমাদের কাস্টমার হেল্পলাইন: +880 1712-345678 (২৪/৭ খোলা)\n✉️ ইমেইল: support@greenbasket.org\n📍 প্রধান কার্যালয়: ধানমন্ডি, ঢাকা, বাংলাদেশ।'
       : '📞 Customer Helpline: +880 1712-345678 (24/7 Support)\n✉️ Email: support@greenbasket.org\n📍 Head Office: Dhanmondi, Dhaka, Bangladesh.';
   }
 
-  // 14. Intelligent Fallback
+  // 15. Intelligent Fallback
   return isBangla
-    ? 'ধন্যবাদ আপনার বার্তার জন্য! GreenBasket ওয়েবসাইটের পণ্য, অর্ডার, ডেলিভারি বা সার্ভিস সম্পর্কে জানতে চাইলে একটু বিস্তারিত লিখুন, অথবা আমাদের ২৪/৭ হেল্পলাইন +880 1712-345678-এ সরাসরি কল করতে পারেন।'
-    : 'Thank you for reaching out! Please feel free to ask any questions about GreenBasket products, orders, delivery, or account services, or call our 24/7 hotline directly at +880 1712-345678.';
+    ? 'ধন্যবাদ আপনার বার্তার জন্য! GreenBasket ওয়েবসাইটের পণ্য, দাম, স্টক, অর্ডার, ডেলিভারি বা সার্ভিস সম্পর্কে জানতে চাইলে একটু বিস্তারিত লিখুন, অথবা আমাদের ২৪/৭ হেল্পলাইন +880 1712-345678-এ সরাসরি কল করতে পারেন।'
+    : 'Thank you for reaching out! Please feel free to ask about any GreenBasket products, pricing, stock, orders, delivery, or account services, or call our 24/7 hotline directly at +880 1712-345678.';
 }
 
-export default function CustomerSupportChat({ currentUser }) {
+export default function CustomerSupportChat({ currentUser, products = [], storeSettings = {} }) {
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(1);
   const [input, setInput] = useState('');
@@ -168,7 +212,7 @@ export default function CustomerSupportChat({ currentUser }) {
     setIsTyping(true);
 
     setTimeout(() => {
-      const replyText = getSmartReply(query);
+      const replyText = getSmartReply(query, products, storeSettings);
       const botMsg = {
         id: Date.now() + 1,
         sender: 'support',
