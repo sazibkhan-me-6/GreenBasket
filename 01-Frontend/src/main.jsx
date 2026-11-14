@@ -13,6 +13,7 @@ import { api } from '@api/api.js';
 import CartDrawer from '@cart/CartDrawer.jsx';
 import AuthModal from '@auth/AuthModal.jsx';
 import CheckoutModal from '@payment/CheckoutModal.jsx';
+import CustomerSupportChat from './CustomerSupportChat.jsx';
 
 // Dedicated Multi-Page View Components
 import ParcelTracking from './ParcelTracking.jsx';
@@ -1055,6 +1056,12 @@ function App() {
         onLoginSuccess={handleLoginSuccess}
         currentUser={currentUser}
         onLogout={handleLogout}
+      />
+
+      {/* Floating Customer Support Live Chat (Bottom-Right) */}
+      <CustomerSupportChat
+        currentUser={currentUser}
+        onNavigate={navigateTo}
       />
 
       {/* Headless Cross-Origin Sync Bridge to Admin Panel */}
