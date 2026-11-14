@@ -456,7 +456,14 @@ function App() {
         paymentMethod: orderData.paymentMethod || newOrder.paymentMethod || 'Cash on Delivery',
         paymentStatus: (orderData.paymentMethod === 'Cash on Delivery' || orderData.paymentMethod === 'cod') ? 'Pending' : 'Paid',
         status: 'Processing',
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+        lat: orderData.lat || orderData.customer?.lat || null,
+        lng: orderData.lng || orderData.customer?.lng || null,
+        detectedArea: orderData.detectedArea || orderData.customer?.detectedArea || orderData.customer?.address || 'Dhaka',
+        locationAccuracy: orderData.locationAccuracy || orderData.customer?.locationAccuracy || null,
+        isLiveGps: orderData.isLiveGps !== undefined ? orderData.isLiveGps : Boolean(orderData.lat || orderData.customer?.lat),
+        liveLocationDetectedAt: orderData.liveLocationDetectedAt || orderData.customer?.liveLocationDetectedAt || new Date().toISOString(),
+        googleMapsUrl: orderData.googleMapsUrl || (orderData.lat ? "https://www.google.com/maps?q=" + orderData.lat + "," + orderData.lng : null)
       };
 
       const orderPayload = {
@@ -478,7 +485,13 @@ function App() {
           totalSpent: Number(fullOrder.total || 0),
           lastOrderDate: fullOrder.date || 'Today',
           joinedDate: fullOrder.date || 'Today',
-          notes: fullOrder.notes || 'Auto-enrolled from website order'
+          notes: fullOrder.notes || 'Auto-enrolled from website order with live GPS',
+          lat: fullOrder.lat,
+          lng: fullOrder.lng,
+          detectedArea: fullOrder.detectedArea,
+          liveLocationDetectedAt: fullOrder.liveLocationDetectedAt,
+          isLiveGps: fullOrder.isLiveGps,
+          googleMapsUrl: fullOrder.googleMapsUrl
         }
       };
 
