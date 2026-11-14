@@ -1,48 +1,93 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, X, Send, Bot, User, Sparkles, Phone, Clock, ChevronDown } from 'lucide-react';
+import { MessageSquare, X, Send, Bot, Phone, Clock } from 'lucide-react';
 
-const QUICK_PROMPTS = [
-  'অর্ডার ট্র্যাক করব কিভাবে?',
-  'ডেলিভারি চার্জ কত?',
-  'ডেলিভারি হতে কত সময় লাগে?',
-  'পেমেন্ট মেথড কি কি আছে?',
-  'অর্গানিক সবজি কতদিন ফ্রেশ থাকে?'
-];
-
-const BOT_RESPONSES = {
-  'অর্ডার ট্র্যাক করব কিভাবে?': 'আপনার অর্ডার ট্র্যাক করতে উপরের "Track Parcel Live" বাটনটিতে ক্লিক করুন অথবা আপনার Order ID (যেমন: GB-1001) দিয়ে সার্চ করুন।',
-  'ডেলিভারি চার্জ কত?': 'GreenBasket-এ $49-এর বেশি অর্ডারে সারা দেশে ডেলিভারি একদম ফ্রি! $49-এর নিচে স্ট্যান্ডার্ড ডেলিভারি চার্জ মাত্র $4.99।',
-  'ডেলিভারি হতে কত সময় লাগে?': 'সাধারণত ঢাকা শহরের ভেতরে সেম-ডে অথবা ১২-২৪ ঘণ্টার মধ্যে আমরা সুপার-ফ্রেশ ডেলিভারি নিশ্চিত করি।',
-  'পেমেন্ট মেথড কি কি আছে?': 'আমাদের রয়েছে ক্যাশ অন ডেলিভারি (Cash on Delivery), বিকাশ (bKash), নগদ (Nagad) এবং ভিসা/মাস্টারকার্ড পেমেন্টের সুবিধা।',
-  'অর্গানিক সবজি কতদিন ফ্রেশ থাকে?': 'আমাদের পণ্য সরাসরি খামার থেকে সংগ্রহ করে কোল্ড-চেইন বজায় রেখে প্যাকেজিং করা হয়, ফলে সাধারণ রেফ্রিজারেশনে ৩-৭ দিন সম্পূর্ণ ফ্রেশ ও ক্রিস্পি থাকে।'
+const INITIAL_MESSAGE = {
+  id: 1,
+  sender: 'support',
+  name: 'GreenBasket Support',
+  text: 'স্বাগতম! 🌱 Welcome to GreenBasket Live Support. আপনার অর্ডার, পণ্য বা যেকোনো বিষয়ে বাংলা বা ইংরেজিতে প্রশ্ন করতে পারেন। How can we assist you today?',
+  time: 'Just now'
 };
 
-export default function CustomerSupportChat({ currentUser, onNavigate }) {
+// Bilingual smart responses (Bangla & English)
+function getSmartReply(userQuery) {
+  const q = userQuery.toLowerCase().trim();
+
+  // English detection
+  const isBangla = /[\u0980-\u09FF]/.test(userQuery);
+
+  // 1. Order Tracking / ট্র্যাক
+  if (q.includes('track') || q.includes('ট্র্যাক') || q.includes('order status') || q.includes('আমার অর্ডার') || q.includes('parcel')) {
+    return isBangla
+      ? '📦 আপনার অর্ডার ট্র্যাক করতে ওয়েবসাইটের উপরে "Track Parcel Live" বাটনে ক্লিক করুন অথবা আপনার Order ID (যেমন: GB-1001) লিখে সার্চ করুন। আপনি রিয়েল-টাইম জিপিএস ম্যাপেও পার্সেল দেখতে পাবেন।'
+      : '📦 To track your order, click the "Track Parcel Live" button at the top of the website or search using your Order ID (e.g., GB-1001). You can also view live GPS tracking on the map.';
+  }
+
+  // 2. Delivery Fee / ডেলিভারি চার্জ
+  if (q.includes('delivery fee') || q.includes('shipping') || q.includes('charge') || q.includes('cost') || q.includes('ডেলিভারি চার্জ') || q.includes('চার্জ') || q.includes('ভাড়া')) {
+    return isBangla
+      ? '🚚 গ্রিন বাস্কেটে $49 বা তার বেশি অর্ডারে সারা দেশে ডেলিভারি সম্পূর্ণ ফ্রি! আর $49-এর নিচে স্ট্যান্ডার্ড ডেলিভারি চার্জ মাত্র $4.99।'
+      : '🚚 At GreenBasket, delivery is 100% FREE on all orders over $49! For orders below $49, the standard delivery fee is just $4.99.';
+  }
+
+  // 3. Delivery Time / কত সময় লাগে
+  if (q.includes('how long') || q.includes('time') || q.includes('when') || q.includes('সময়') || q.includes('কখন') || q.includes('কবে')) {
+    return isBangla
+      ? '⚡ ঢাকা মেট্রোপলিটন এলাকায় সেম-ডে অথবা ১২ থেকে ২৪ ঘণ্টার মধ্যে সুপার-ফ্রেশ ডেলিভারি সম্পন্ন হয়। অন্যান্য এলাকায় ১-২ দিনের মধ্যে পৌঁছে দেওয়া হয়।'
+      : '⚡ In Dhaka Metro, we ensure same-day or 12–24 hour super-fresh delivery. For other areas, it takes 1–2 business days.';
+  }
+
+  // 4. Payment Methods / পেমেন্ট
+  if (q.includes('payment') || q.includes('pay') || q.includes('bkash') || q.includes('nagad') || q.includes('cash') || q.includes('পেমেন্ট') || q.includes('বিকাশ') || q.includes('নগদ') || q.includes('টাকা')) {
+    return isBangla
+      ? '💳 আমাদের রয়েছে ক্যাশ অন ডেলিভারি (Cash on Delivery), বিকাশ (bKash), নগদ (Nagad) এবং ভিসা/মাস্টারকার্ড অনলাইন পেমেন্টের সহজ সুবিধা।'
+      : '💳 We accept Cash on Delivery (COD), bKash, Nagad, as well as Visa & MasterCard online card payments.';
+  }
+
+  // 5. Freshness / Quality / অর্গানিক
+  if (q.includes('fresh') || q.includes('organic') || q.includes('quality') || q.includes('ফ্রেশ') || q.includes('অর্গানিক') || q.includes('তাজা') || q.includes('খামার')) {
+    return isBangla
+      ? '🌿 আমাদের সকল সবজি ও ফল ১০০% সার্টিফাইড অর্গানিক খামার থেকে সরাসরি সংগ্রহ করা হয় এবং হাইজেনিক কোল্ড-প্যাকিংয়ের মাধ্যমে সম্পূর্ণ পুষ্টিমান অক্ষুণ্ণ রাখা হয়।'
+      : '🌿 All our produce is 100% certified organic, harvested directly from verified local farms and hygienically packed to preserve maximum crispness and nutrients.';
+  }
+
+  // 6. Discount / Promo Code / অফার
+  if (q.includes('discount') || q.includes('promo') || q.includes('coupon') || q.includes('offer') || q.includes('ছাড়') || q.includes('অফার') || q.includes('ডিসকাউন্ট')) {
+    return isBangla
+      ? '🎉 স্পেশাল অফার! চেকআউটে প্রোমোকোড "GREEN20" ব্যবহার করলেই পেয়ে যাবেন ফ্ল্যাট ২০% ইনস্ট্যান্ট ডিসকাউন্ট!'
+      : '🎉 Special Offer! Use promo code "GREEN20" at checkout to get a flat 20% instant discount!';
+  }
+
+  // 7. Contact / Helpline / Phone / যোগাযোগ
+  if (q.includes('contact') || q.includes('phone') || q.includes('call') || q.includes('number') || q.includes('হেল্প') || q.includes('ফোন') || q.includes('যোগাযোগ') || q.includes('নাম্বার')) {
+    return isBangla
+      ? '📞 আমাদের হেল্পলাইন ২৪/৭ খোলা: +880 1712-345678। এছাড়া সাপোর্ট ইমেইল: support@greenbasket.org।'
+      : '📞 Our 24/7 hotline is +880 1712-345678. You can also reach our support team at support@greenbasket.org.';
+  }
+
+  // 8. Greetings
+  if (q.includes('hello') || q.includes('hi') || q.includes('hey') || q.includes('হ্যালো') || q.includes('হাই') || q.includes('সালাম') || q.includes('salam')) {
+    return isBangla
+      ? '👋 হ্যালো! GreenBasket-এ আপনাকে স্বাগতম। আজ আপনাকে কীভাবে সহায়তা করতে পারি?'
+      : '👋 Hello! Welcome to GreenBasket. How can we help you today?';
+  }
+
+  // Fallback
+  return isBangla
+    ? 'ধন্যবাদ আপনার বার্তার জন্য! আমাদের একজন কাস্টমার কেয়ার প্রতিনিধি খুব শীঘ্রই আপনার সাথে যোগাযোগ করবেন। জরুরি প্রয়োজনে আমাদের হটলাইন +880 1712-345678-এ সরাসরি কল করতে পারেন।'
+    : 'Thank you for your message! A customer care specialist has been notified. For urgent assistance, please call our hotline directly at +880 1712-345678.';
+}
+
+export default function CustomerSupportChat({ currentUser }) {
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(1);
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState(() => {
-    try {
-      const saved = localStorage.getItem('gb_chat_messages');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    return [
-      {
-        id: 1,
-        sender: 'support',
-        name: 'GreenBasket Support',
-        text: 'স্বাগতম! 🌱 GreenBasket লাইভ সাপোর্টে আপনাকে স্বাগতম। আপনার অর্ডার বা কোনো পণ্য নিয়ে যেকোনো প্রশ্ন থাকলে নিচে লিখুন বা নিচের অপশনগুলোতে ক্লিক করুন।',
-        time: 'Just now'
-      }
-    ];
-  });
+  // In-memory messages only: resets on page reload and on chat close
+  const [messages, setMessages] = useState([INITIAL_MESSAGE]);
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('gb_chat_messages', JSON.stringify(messages));
-    } catch (e) {}
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
@@ -51,8 +96,17 @@ export default function CustomerSupportChat({ currentUser, onNavigate }) {
     setUnreadCount(0);
   };
 
-  const handleSend = (textToSend) => {
-    const query = (textToSend || input).trim();
+  // Close chat AND reset chat history completely
+  const handleClose = () => {
+    setIsOpen(false);
+    setMessages([INITIAL_MESSAGE]);
+    setInput('');
+    setIsTyping(false);
+    setUnreadCount(0);
+  };
+
+  const handleSend = () => {
+    const query = input.trim();
     if (!query) return;
 
     const userMsg = {
@@ -64,25 +118,11 @@ export default function CustomerSupportChat({ currentUser, onNavigate }) {
     };
 
     setMessages(prev => [...prev, userMsg]);
-    if (!textToSend) setInput('');
-
+    setInput('');
     setIsTyping(true);
 
     setTimeout(() => {
-      let replyText = BOT_RESPONSES[query];
-      if (!replyText) {
-        const lower = query.toLowerCase();
-        if (lower.includes('order') || lower.includes('ট্র্যাক') || lower.includes('track')) {
-          replyText = 'আপনার অর্ডার ট্র্যাক করতে উপরের "Track Parcel Live" মেনু থেকে লাইভ জিপিএস লোকেশন দেখতে পারেন।';
-        } else if (lower.includes('help') || lower.includes('সাহায্য') || lower.includes('call') || lower.includes('ফোন')) {
-          replyText = 'আমাদের হটলাইন প্রতিদিন সকাল ৮টা থেকে রাত ১০টা পর্যন্ত খোলা রয়েছে: +880 1712-345678। এছাড়া যেকোনো সময় এখানে মেসেজ দিতে পারেন।';
-        } else if (lower.includes('discount') || lower.includes('promo') || lower.includes('অফার')) {
-          replyText = '🎉 নতুন কাস্টমারদের জন্য প্রোমোকোড GREEN20 ব্যবহার করলে পাচ্ছেন ফ্ল্যাট ২০% ছাড়!';
-        } else {
-          replyText = `ধন্যবাদ আপনার মেসেজের জন্য! আমাদের প্রতিনিধি খুব দ্রুত আপনার সাথে যোগাযোগ করবেন। জরুরি প্রয়োজনে আমাদের হটলাইন +880 1712-345678-এ কল করতে পারেন।`;
-        }
-      }
-
+      const replyText = getSmartReply(query);
       const botMsg = {
         id: Date.now() + 1,
         sender: 'support',
@@ -92,7 +132,7 @@ export default function CustomerSupportChat({ currentUser, onNavigate }) {
       };
       setMessages(prev => [...prev, botMsg]);
       setIsTyping(false);
-    }, 850);
+    }, 750);
   };
 
   return (
@@ -188,7 +228,7 @@ export default function CustomerSupportChat({ currentUser, onNavigate }) {
           <div
             style={{
               width: 'min(380px, calc(100vw - 32px))',
-              height: '520px',
+              height: '490px',
               maxHeight: 'calc(100vh - 100px)',
               background: '#ffffff',
               borderRadius: '20px',
@@ -244,13 +284,14 @@ export default function CustomerSupportChat({ currentUser, onNavigate }) {
                   <b style={{ display: 'block', fontSize: '14px', letterSpacing: '-0.2px' }}>GreenBasket Support</b>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#d9f99d' }}>
                     <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#a3e635' }} />
-                    Active Now (Replies in seconds)
+                    Active Now (বাংলা / English)
                   </div>
                 </div>
               </div>
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={handleClose}
                 aria-label="Close Chat"
+                title="চ্যাট শেষ ও বন্ধ করুন"
                 style={{
                   background: 'rgba(255,255,255,0.15)',
                   border: 'none',
@@ -351,44 +392,6 @@ export default function CustomerSupportChat({ currentUser, onNavigate }) {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Quick Prompts */}
-            <div
-              style={{
-                background: '#ffffff',
-                borderTop: '1px solid #edf2e8',
-                padding: '8px 12px',
-                display: 'flex',
-                gap: '6px',
-                overflowX: 'auto',
-                whiteSpace: 'nowrap',
-                scrollbarWidth: 'none'
-              }}
-            >
-              {QUICK_PROMPTS.map((q) => (
-                <button
-                  key={q}
-                  type="button"
-                  onClick={() => handleSend(q)}
-                  style={{
-                    background: '#f2f7ec',
-                    border: '1px solid #d7e4cc',
-                    color: '#284c13',
-                    padding: '5px 10px',
-                    borderRadius: '12px',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                    transition: 'all 0.15s'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#e3eed6'}
-                  onMouseLeave={e => e.currentTarget.style.background = '#f2f7ec'}
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-
             {/* Input Bar */}
             <form
               onSubmit={(e) => {
@@ -399,22 +402,22 @@ export default function CustomerSupportChat({ currentUser, onNavigate }) {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                padding: '10px 14px',
+                padding: '12px 14px',
                 background: '#ffffff',
                 borderTop: '1px solid #e5ede0'
               }}
             >
               <input
                 type="text"
-                placeholder="এখানে মেসেজ লিখুন..."
+                placeholder="মেসেজ লিখুন / Type your message..."
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 style={{
                   flex: 1,
                   border: '1px solid #d5decb',
                   borderRadius: '10px',
-                  padding: '9px 12px',
-                  fontSize: '12px',
+                  padding: '10px 12px',
+                  fontSize: '12.5px',
                   outline: 'none',
                   background: '#fbfdf9',
                   color: '#1a3211'
@@ -429,8 +432,8 @@ export default function CustomerSupportChat({ currentUser, onNavigate }) {
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '10px',
-                  width: '36px',
-                  height: '36px',
+                  width: '38px',
+                  height: '38px',
                   display: 'grid',
                   placeItems: 'center',
                   cursor: input.trim() ? 'pointer' : 'default',
